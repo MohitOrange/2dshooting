@@ -1,0 +1,68 @@
+<!--
+  Managed code stripping is set to High to keep the APK small.
+  Keep our own game code whole. The Input System is NOT listed: the package writes its own
+  keep-list at build time (LinkFileGenerator) for the controls it creates through reflection,
+  and keeping all of it also dragged UI Toolkit code into the APK.
+  Netcode and Vivox are stripped normally too (2026-11-01, checked online + voice on the PC build).
+  Online play: Unity Services build their web models through reflection (Newtonsoft JSON), and
+  the lobby's live socket (Wire) uses SslStream, whose TLS provider Mono creates by name at
+  runtime. High stripping removes both, which shows up as "TLS handshake" errors and joins
+  that never finish.
+-->
+<linker>
+  <assembly fullname="NeonBrawl.Core" preserve="all" />
+  <assembly fullname="NeonBrawl.Game" preserve="all" />
+
+  <assembly fullname="Unity.Networking.Transport" preserve="all" />
+  <assembly fullname="Unity.Services.Core" preserve="all" />
+  <assembly fullname="Unity.Services.Core.Internal" preserve="all" />
+  <assembly fullname="Unity.Services.Core.Configuration" preserve="all" />
+  <assembly fullname="Unity.Services.Core.Device" preserve="all" />
+  <assembly fullname="Unity.Services.Core.Environments.Internal" preserve="all" />
+  <assembly fullname="Unity.Services.Core.Registration" preserve="all" />
+  <assembly fullname="Unity.Services.Core.Scheduler" preserve="all" />
+  <assembly fullname="Unity.Services.Core.Telemetry" preserve="all" />
+  <assembly fullname="Unity.Services.Core.Threading" preserve="all" />
+  <assembly fullname="Unity.Services.Authentication" preserve="all" />
+  <assembly fullname="Unity.Services.Multiplayer" preserve="all" />
+  <assembly fullname="Unity.Services.QoS" preserve="all" />
+  <assembly fullname="Unity.Services.Wire.Internal" preserve="all" />
+
+  <!-- Ads (Google AdMob + its Unity Ads adapter) and purchases (Unity IAP) talk to their Android/iOS code
+       by name and build their store/ad models through reflection and JSON. -->
+  <assembly fullname="GoogleMobileAds" preserve="all" />
+  <assembly fullname="GoogleMobileAds.Core" preserve="all" />
+  <assembly fullname="GoogleMobileAds.Common" preserve="all" />
+  <assembly fullname="GoogleMobileAds.Ump" preserve="all" />
+  <assembly fullname="GoogleMobileAds.Android" preserve="all" ignoreIfMissing="1" />
+  <assembly fullname="GoogleMobileAds.Ump.Android" preserve="all" ignoreIfMissing="1" />
+  <assembly fullname="GoogleMobileAds.Mediation.UnityAds.Api" preserve="all" ignoreIfMissing="1" />
+  <assembly fullname="GoogleMobileAds.Mediation.UnityAds.Common" preserve="all" ignoreIfMissing="1" />
+  <assembly fullname="GoogleMobileAds.Mediation.UnityAds.Android" preserve="all" ignoreIfMissing="1" />
+  <assembly fullname="Unity.Purchasing" preserve="all" />
+  <assembly fullname="Unity.Purchasing.Stores" preserve="all" />
+  <assembly fullname="Unity.Purchasing.SecurityCore" preserve="all" />
+  <assembly fullname="Unity.Purchasing.Utilities" preserve="all" />
+  <assembly fullname="Unity.Purchasing.TransactionVerifier" preserve="all" />
+
+  <assembly fullname="System">
+    <!-- mscorlib loads this by name to set up certificates; without it every TLS handshake fails -->
+    <namespace fullname="Mono" preserve="all" />
+    <namespace fullname="Mono.Net.Security" preserve="all" />
+    <namespace fullname="Mono.Unity" preserve="all" />
+    <namespace fullname="Mono.Btls" preserve="all" />
+    <namespace fullname="System.Net.Security" preserve="all" />
+    <!-- ServicePointManager (used by every TLS handshake) reads machine.config through these -->
+    <namespace fullname="System.Net.Configuration" preserve="all" />
+    <namespace fullname="System.Security.Cryptography.X509Certificates" preserve="all" />
+  </assembly>
+  <assembly fullname="Mono.Security" preserve="all" />
+  <!-- the config system creates ExeConfigurationHost and section handlers by name -->
+  <assembly fullname="System.Configuration" preserve="all" />
+  <!-- certificate checks create hash and cipher classes by name (CryptoConfig) -->
+  <assembly fullname="mscorlib">
+    <namespace fullname="System.Security.Cryptography" preserve="all" />
+    <namespace fullname="System.Security.Cryptography.X509Certificates" preserve="all" />
+    <namespace fullname="Mono.Security.Cryptography" preserve="all" />
+  </assembly>
+</linker>

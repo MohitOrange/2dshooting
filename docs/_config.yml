@@ -1,0 +1,7 @@
+# GitHub Pages (Settings -> Pages -> Deploy from branch: main, folder /docs)
+# Only the website files are published; the design notes stay in the repo.
+exclude:
+  - GAME_PLAN.md
+  - IMAGE_PROMPTS.md
+  - README.md
+  - PLAY_STORE_CHECKLIST.md

@@ -1,0 +1,524 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 816bccb10fb9df049b408b147349b12a, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: NeonBrawl.Game::NeonBrawl.GameConfig
+  Player:
+    Radius: 0.38
+    MoveSpeed: 5.2
+    Acceleration: 60
+    MaxHealth: 100
+    MaxArmor: 100
+    ArmorAbsorb: 0.5
+    DashSpeed: 15
+    DashTime: 0.16
+    DashCooldown: 2.2
+    KnockbackDamping: 9
+    RespawnDelay: 3
+    SpawnProtection: 2
+    StartGrenades: 1
+    MaxGrenades: 3
+    PickupRadius: 0.8
+    HealthPickup: 50
+    ArmorPickup: 50
+    PickupRespawn: 14
+    DroppedWeaponLife: 15
+  Grenade:
+    Damage: 95
+    Radius: 3
+    Fuse: 2
+    ThrowSpeed: 12
+    MaxThrowDistance: 9
+    Knockback: 14
+    MaxHitDamage: 100
+    BarrelDamage: 80
+    BarrelRadius: 2.8
+  Bots:
+  - Name: Easy
+    AimErrorDeg: 17
+    ReactionTime: 0.9
+    ViewRange: 9
+    ThinkInterval: 0.5
+    BurstTime: 0.5
+    BurstPause: 0.8
+    AimTurnSpeed: 260
+    GrenadeChance: 0
+    DashChance: 0.05
+  - Name: Normal
+    AimErrorDeg: 8.6
+    ReactionTime: 0.5
+    ViewRange: 12
+    ThinkInterval: 0.32
+    BurstTime: 0.75
+    BurstPause: 0.5
+    AimTurnSpeed: 420
+    GrenadeChance: 0.15
+    DashChance: 0.25
+  - Name: Hard
+    AimErrorDeg: 3.4
+    ReactionTime: 0.22
+    ViewRange: 15
+    ThinkInterval: 0.18
+    BurstTime: 1.3
+    BurstPause: 0.3
+    AimTurnSpeed: 700
+    GrenadeChance: 0.3
+    DashChance: 0.45
+  Weapons:
+  - Id: 0
+    DisplayName: PISTOL
+    Kind: 0
+    Damage: 18
+    Interval: 0.24
+    MagSize: 12
+    Reserve: -1
+    ReloadTime: 1
+    SpreadDeg: 2
+    Pellets: 1
+    Range: 14
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 2.5
+    Recoil: 0.08
+    CameraKick: 0.05
+    Shake: 0.05
+    MoveMultiplier: 1
+    MaxHitDamage: 30
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 0
+    Sound: 0
+    EjectShell: 1
+    TracerColor: {r: 1, g: 0.88, b: 0.55, a: 1}
+    GunColor: {r: 0.22, g: 0.23, b: 0.25, a: 1}
+    GunLength: 0.26
+    GunWidth: 0.09
+  - Id: 1
+    DisplayName: HAND CANNON
+    Kind: 0
+    Damage: 40
+    Interval: 0.55
+    MagSize: 7
+    Reserve: 28
+    ReloadTime: 1.4
+    SpreadDeg: 1.2
+    Pellets: 1
+    Range: 16
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 7
+    Recoil: 0.18
+    CameraKick: 0.16
+    Shake: 0.16
+    MoveMultiplier: 1
+    MaxHitDamage: 50
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 3
+    Sound: 1
+    EjectShell: 1
+    TracerColor: {r: 1, g: 0.88, b: 0.55, a: 1}
+    GunColor: {r: 0.62, g: 0.63, b: 0.66, a: 1}
+    GunLength: 0.34
+    GunWidth: 0.12
+  - Id: 2
+    DisplayName: SMG
+    Kind: 0
+    Damage: 11
+    Interval: 0.085
+    MagSize: 32
+    Reserve: 96
+    ReloadTime: 1.4
+    SpreadDeg: 5
+    Pellets: 1
+    Range: 12
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 1.4
+    Recoil: 0.05
+    CameraKick: 0.04
+    Shake: 0.04
+    MoveMultiplier: 1
+    MaxHitDamage: 18
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 2
+    Sound: 0
+    EjectShell: 1
+    TracerColor: {r: 1, g: 0.88, b: 0.55, a: 1}
+    GunColor: {r: 0.25, g: 0.27, b: 0.3, a: 1}
+    GunLength: 0.42
+    GunWidth: 0.11
+  - Id: 3
+    DisplayName: ASSAULT RIFLE
+    Kind: 0
+    Damage: 16
+    Interval: 0.11
+    MagSize: 30
+    Reserve: 90
+    ReloadTime: 1.6
+    SpreadDeg: 2.5
+    Pellets: 1
+    Range: 18
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 2.2
+    Recoil: 0.07
+    CameraKick: 0.06
+    Shake: 0.05
+    MoveMultiplier: 0.95
+    MaxHitDamage: 24
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 4
+    Sound: 1
+    EjectShell: 1
+    TracerColor: {r: 1, g: 0.88, b: 0.55, a: 1}
+    GunColor: {r: 0.36, g: 0.3, b: 0.2, a: 1}
+    GunLength: 0.62
+    GunWidth: 0.12
+  - Id: 4
+    DisplayName: SHOTGUN
+    Kind: 0
+    Damage: 10
+    Interval: 0.75
+    MagSize: 6
+    Reserve: 18
+    ReloadTime: 1.6
+    SpreadDeg: 11
+    Pellets: 7
+    Range: 8
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 4.5
+    Recoil: 0.3
+    CameraKick: 0.3
+    Shake: 0.32
+    MoveMultiplier: 0.95
+    MaxHitDamage: 15
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 4
+    Sound: 2
+    EjectShell: 1
+    TracerColor: {r: 1, g: 0.75, b: 0.42, a: 1}
+    GunColor: {r: 0.45, g: 0.3, b: 0.17, a: 1}
+    GunLength: 0.58
+    GunWidth: 0.13
+  - Id: 5
+    DisplayName: SNIPER
+    Kind: 0
+    Damage: 76
+    Interval: 1.1
+    MagSize: 5
+    Reserve: 10
+    ReloadTime: 2
+    SpreadDeg: 0.2
+    Pellets: 1
+    Range: 32
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 9
+    Recoil: 0.3
+    CameraKick: 0.3
+    Shake: 0.3
+    MoveMultiplier: 0.9
+    MaxHitDamage: 115
+    ScopeSize: 9.5
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 5
+    Sound: 3
+    EjectShell: 1
+    TracerColor: {r: 1, g: 0.97, b: 0.85, a: 1}
+    GunColor: {r: 0.3, g: 0.35, b: 0.2, a: 1}
+    GunLength: 0.85
+    GunWidth: 0.11
+  - Id: 6
+    DisplayName: MACHINE GUN
+    Kind: 0
+    Damage: 14
+    Interval: 0.09
+    MagSize: 80
+    Reserve: 80
+    ReloadTime: 3
+    SpreadDeg: 4.5
+    Pellets: 1
+    Range: 16
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 2
+    Recoil: 0.08
+    CameraKick: 0.07
+    Shake: 0.06
+    MoveMultiplier: 0.85
+    MaxHitDamage: 22
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 4
+    Sound: 1
+    EjectShell: 1
+    TracerColor: {r: 1, g: 0.88, b: 0.55, a: 1}
+    GunColor: {r: 0.2, g: 0.22, b: 0.2, a: 1}
+    GunLength: 0.72
+    GunWidth: 0.15
+  - Id: 7
+    DisplayName: ROCKET LAUNCHER
+    Kind: 1
+    Damage: 88
+    Interval: 1
+    MagSize: 1
+    Reserve: 5
+    ReloadTime: 1.4
+    SpreadDeg: 1
+    Pellets: 1
+    Range: 30
+    ProjectileSpeed: 14
+    SplashRadius: 2.6
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 14
+    Recoil: 0.35
+    CameraKick: 0.35
+    Shake: 0.25
+    MoveMultiplier: 0.9
+    MaxHitDamage: 90
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 5
+    Sound: 4
+    EjectShell: 0
+    TracerColor: {r: 1, g: 0.88, b: 0.55, a: 1}
+    GunColor: {r: 0.33, g: 0.38, b: 0.22, a: 1}
+    GunLength: 0.8
+    GunWidth: 0.17
+  - Id: 8
+    DisplayName: FLAMETHROWER
+    Kind: 2
+    Damage: 6
+    Interval: 0.06
+    MagSize: 100
+    Reserve: 100
+    ReloadTime: 2
+    SpreadDeg: 14
+    Pellets: 1
+    Range: 4.5
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 0.6
+    Recoil: 0.02
+    CameraKick: 0.01
+    Shake: 0.02
+    MoveMultiplier: 1
+    MaxHitDamage: 12
+    ScopeSize: 0
+    BurnDps: 6
+    BurnTime: 2
+    Rank: 3
+    Sound: 7
+    EjectShell: 0
+    TracerColor: {r: 1, g: 0.6, b: 0.2, a: 1}
+    GunColor: {r: 0.62, g: 0.2, b: 0.15, a: 1}
+    GunLength: 0.6
+    GunWidth: 0.15
+  - Id: 9
+    DisplayName: PLASMA RIFLE
+    Kind: 1
+    Damage: 22
+    Interval: 0.18
+    MagSize: 20
+    Reserve: 60
+    ReloadTime: 1.5
+    SpreadDeg: 2
+    Pellets: 1
+    Range: 24
+    ProjectileSpeed: 22
+    SplashRadius: 0
+    Bounces: 1
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 3
+    Recoil: 0.06
+    CameraKick: 0.05
+    Shake: 0.05
+    MoveMultiplier: 1
+    MaxHitDamage: 30
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 4
+    Sound: 5
+    EjectShell: 0
+    TracerColor: {r: 0.4, g: 1, b: 0.55, a: 1}
+    GunColor: {r: 0.18, g: 0.55, b: 0.48, a: 1}
+    GunLength: 0.6
+    GunWidth: 0.13
+  - Id: 10
+    DisplayName: TESLA GUN
+    Kind: 3
+    Damage: 9
+    Interval: 0.12
+    MagSize: 40
+    Reserve: 80
+    ReloadTime: 1.8
+    SpreadDeg: 0
+    Pellets: 1
+    Range: 10
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 2
+    ChainRange: 4
+    Knockback: 1
+    Recoil: 0.03
+    CameraKick: 0.02
+    Shake: 0.03
+    MoveMultiplier: 1
+    MaxHitDamage: 12
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 3
+    Sound: 6
+    EjectShell: 0
+    TracerColor: {r: 0.55, g: 0.85, b: 1, a: 1}
+    GunColor: {r: 0.75, g: 0.45, b: 0.2, a: 1}
+    GunLength: 0.55
+    GunWidth: 0.15
+  - Id: 11
+    DisplayName: KNIFE
+    Kind: 4
+    Damage: 45
+    Interval: 0.45
+    MagSize: 1
+    Reserve: -1
+    ReloadTime: 0
+    SpreadDeg: 0
+    Pellets: 1
+    Range: 1.1
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 5
+    Recoil: 0.08
+    CameraKick: 0.05
+    Shake: 0.05
+    MoveMultiplier: 1
+    MaxHitDamage: 90
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 0
+    Sound: 21
+    EjectShell: 0
+    TracerColor: {r: 1, g: 0.88, b: 0.55, a: 1}
+    GunColor: {r: 0.78, g: 0.8, b: 0.83, a: 1}
+    GunLength: 0.3
+    GunWidth: 0.07
+  - Id: 12
+    DisplayName: GRENADE
+    Kind: 1
+    Damage: 95
+    Interval: 1
+    MagSize: 1
+    Reserve: 0
+    ReloadTime: 0
+    SpreadDeg: 0
+    Pellets: 1
+    Range: 9
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 14
+    Recoil: 0.08
+    CameraKick: 0.05
+    Shake: 0.05
+    MoveMultiplier: 1
+    MaxHitDamage: 100
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 0
+    Sound: 8
+    EjectShell: 0
+    TracerColor: {r: 1, g: 0.88, b: 0.55, a: 1}
+    GunColor: {r: 0.25, g: 0.35, b: 0.2, a: 1}
+    GunLength: 0.2
+    GunWidth: 0.2
+  - Id: 13
+    DisplayName: BARREL
+    Kind: 1
+    Damage: 80
+    Interval: 1
+    MagSize: 1
+    Reserve: 0
+    ReloadTime: 0
+    SpreadDeg: 0
+    Pellets: 1
+    Range: 0
+    ProjectileSpeed: 0
+    SplashRadius: 0
+    Bounces: 0
+    ChainCount: 0
+    ChainRange: 0
+    Knockback: 14
+    Recoil: 0.08
+    CameraKick: 0.05
+    Shake: 0.05
+    MoveMultiplier: 1
+    MaxHitDamage: 90
+    ScopeSize: 0
+    BurnDps: 0
+    BurnTime: 0
+    Rank: 0
+    Sound: 8
+    EjectShell: 0
+    TracerColor: {r: 1, g: 0.88, b: 0.55, a: 1}
+    GunColor: {r: 0.7, g: 0.15, b: 0.1, a: 1}
+    GunLength: 0.2
+    GunWidth: 0.2

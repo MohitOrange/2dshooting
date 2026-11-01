@@ -105,3 +105,11 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Neon Brawl build output and test screenshots
+/[Bb]uilds/
+
+# Android upload key and its passwords: keep them OFF GitHub (back them up somewhere safe instead)
+/[Kk]eystore/
+*.keystore
+*.jks

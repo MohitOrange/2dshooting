@@ -1,0 +1,19 @@
+{
+    "name": "NeonBrawl.Editor",
+    "rootNamespace": "NeonBrawl.EditorTools",
+    "references": [
+        "NeonBrawl.Core",
+        "NeonBrawl.Game",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Universal.2D.Runtime"
+    ],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
