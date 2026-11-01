@@ -132,6 +132,7 @@ namespace NeonBrawl
         /// <summary>Phone back gesture / Esc in the menus: close what is on top, else go back a page.</summary>
         public void BackPressed()
         {
+            if (FriendsVisible) { _overlay.Friends.Close(); return; }
             if (ControlsEditorVisible) { _controls.Cancel(); return; }
             if (SettingsVisible) { ShowSettings(false); return; }
             if (OnlineVisible) { _online.GoBack(); return; }
@@ -215,6 +216,22 @@ namespace NeonBrawl
         public void ShowTestAd(Action<bool> done) => _overlay.ShowAd(done);
 
         public void AskAdConsent(Action<bool> answer) => _overlay.AskConsent(answer);
+
+        /// <summary>Opens the friends popup on a tab (FriendsPopup.TabFriends / TabRequests / TabAdd).</summary>
+        public void ShowFriends(int tab)
+        {
+            _overlay.Friends.Open(tab);
+            _overlay.transform.SetAsLastSibling();
+        }
+
+        /// <summary>A friend invited us: the card slides down over whatever is showing.</summary>
+        public void ShowInvite(FriendInvite invite)
+        {
+            _overlay.Invite.Show(invite);
+            _overlay.transform.SetAsLastSibling();
+        }
+
+        public bool FriendsVisible => _overlay.Friends.IsOpen;
 
         public bool PauseVisible => _pause.gameObject.activeSelf;
         public bool SettingsVisible => _settings.gameObject.activeSelf;

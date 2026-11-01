@@ -25,6 +25,7 @@
   <assembly fullname="Unity.Services.Core.Threading" preserve="all" />
   <assembly fullname="Unity.Services.Authentication" preserve="all" />
   <assembly fullname="Unity.Services.Multiplayer" preserve="all" />
+  <assembly fullname="Unity.Services.Friends" preserve="all" />
   <assembly fullname="Unity.Services.QoS" preserve="all" />
   <assembly fullname="Unity.Services.Wire.Internal" preserve="all" />
 

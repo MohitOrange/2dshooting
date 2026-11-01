@@ -14,6 +14,17 @@ namespace NeonBrawl.EditorTools
         [MenuItem("Neon Brawl/Build/Windows (test)")]
         public static void BuildWindows() => Build(BuildTarget.StandaloneWindows64, "Builds/Windows/NeonBrawl.exe");
 
+        /// <summary>PC test build into Builds/PC (command line: -executeMethod NeonBrawl.EditorTools.BuildTools.BuildPc).</summary>
+        [MenuItem("Neon Brawl/Build/PC test (Builds/PC)")]
+        public static void BuildPc()
+        {
+            var original = EditorUserBuildSettings.activeBuildTarget;
+            bool ok = Log(Build(BuildTarget.StandaloneWindows64, "Builds/PC/NeonBrawl.exe"));
+            if (EditorUserBuildSettings.activeBuildTarget != original)
+                EditorUserBuildSettings.SwitchActiveBuildTarget(BuildPipeline.GetBuildTargetGroup(original), original);
+            if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
+        }
+
         [MenuItem("Neon Brawl/Build/Android APK (test)")]
         public static void BuildAndroidApk()
         {
@@ -49,8 +60,8 @@ namespace NeonBrawl.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
         }
 
-        public const string Version = "1.0.0";
-        public const int VersionCode = 1;
+        public const string Version = "1.0.1";
+        public const int VersionCode = 2;
         private const string KeystoreProperties = "Keystore/keystore.properties";
 
         /// <summary>

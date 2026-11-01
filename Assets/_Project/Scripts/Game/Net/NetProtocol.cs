@@ -39,6 +39,9 @@ namespace NeonBrawl
         Joined = 31,     // a fighter joined a running match
         Left = 32,       // a fighter left the match
         Closing = 33,    // the host is closing the room
+
+        // both ways
+        Ping = 40,       // "still here" every 2 s, so a dead link is noticed (unreliable)
     }
 
     public enum ShotKind : byte { Fire = 0, Melee = 1, Grenade = 2 }
@@ -62,6 +65,8 @@ namespace NeonBrawl
         public ulong ClientId;
         public string Name;
         public FighterLook Look;
+        /// <summary>Unity player id (for friend requests and recent players); empty on LAN.</summary>
+        public string PlayerId;
     }
 
     /// <summary>Read/write helpers so every message uses the same layouts.</summary>

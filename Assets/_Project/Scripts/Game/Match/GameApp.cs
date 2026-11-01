@@ -96,6 +96,9 @@ namespace NeonBrawl
             _ctx.Chat.Init(_ctx);
             _ctx.Voice = online.AddComponent<VoiceService>();
             _ctx.Voice.Init(_ctx);
+            _ctx.Friends = online.AddComponent<FriendsHub>();
+            _ctx.Friends.Init(_ctx);
+            _ctx.Net.ReconnectChanged += OnReconnectChanged;
 
             var ui = new GameObject("UI");
             ui.transform.SetParent(transform, false);
@@ -111,6 +114,52 @@ namespace NeonBrawl
             StartMenu();
             _iap.Init();
             StartAds();
+        }
+
+        /// <summary>
+        /// Signs in to Unity services, connects friends and loads the voice engine in the background at
+        /// launch: friends show up on the home screen, and the first online match does not stall on them.
+        /// </summary>
+        private async void StartOnlineServices()
+        {
+            _ctx.Friends.Invited += inv => _ctx.UI.ShowInvite(inv);
+            try { await UgsBoot.SignInAsync(); }
+            catch (System.Exception e) { Debug.LogWarning("[NeonBrawl] services offline: " + e.Message); }
+            _ctx.Friends.Connect();
+            _ctx.Voice.Prewarm();
+        }
+
+        private void OnReconnectChanged(bool trying)
+        {
+            if (trying)
+            {
+                if (OnlineMatch) _ctx.Events.RaiseToast("CONNECTION LOST · RECONNECTING…");
+                else _ctx.UI.Toast("Connection lost. Reconnecting…");
+            }
+            else if (_ctx.Net.InRoom)
+            {
+                _ctx.Sfx.PlayUi(SfxId.UiOpen, 0.6f);
+                if (OnlineMatch) _ctx.Events.RaiseToast("BACK IN THE ROOM!");
+                else _ctx.UI.Toast("Back in the room!");
+            }
+        }
+
+        /// <summary>A friend invite or a friend's room: leave whatever we are in and join that code.</summary>
+        public void JoinFriendRoom(string code)
+        {
+            if (string.IsNullOrEmpty(code)) return;
+            if (_ctx.Net.InRoom && _ctx.Net.Code == code) { OpenOnline(); return; }
+            if (_ctx.Net.State != NetSession.Status.Offline) _ctx.Net.Leave();
+            OpenOnline();
+            StartCoroutine(JoinWhenFree(code));
+        }
+
+        private System.Collections.IEnumerator JoinWhenFree(string code)
+        {
+            float until = Time.unscaledTime + 6f;
+            while (_ctx.Net.State != NetSession.Status.Offline && Time.unscaledTime < until) yield return null;
+            yield return null;
+            _ctx.Net.JoinRoom(code);
         }
 
         /// <summary>
@@ -158,8 +207,14 @@ namespace NeonBrawl
         {
             // dev testing of online play from the command line (two copies on one PC):
             //   -nbname NAME  -nbhost | -nbquick | -nbjoin CODE | -nblanhost | -nblanjoin IP   -nbbot  -nbshots SECONDS
+            //   friends: -nbfriend CODE  -nbacceptall  -nbinvitefirst  -nbjoininvite  -nbautostart  -nbfreeze SECONDS
             string name = CommandLine.Value("-nbname");
             if (!string.IsNullOrEmpty(name)) { _ctx.Profile.Data.Name = NetIO.CleanName(name); }
+            // after the scene has loaded: Unity services packages finish their own set-up before this
+            StartOnlineServices();
+            if (CommandLine.Value("-nbfriend") != null || CommandLine.Has("-nbacceptall") || CommandLine.Has("-nbinvitefirst") ||
+                CommandLine.Has("-nbjoininvite") || CommandLine.Has("-nbautostart") || CommandLine.Value("-nbfreeze") != null)
+                StartCoroutine(DevFriends());
             string join = CommandLine.Value("-nbjoin");
             string lan = CommandLine.Value("-nblanjoin");
             if (CommandLine.Has("-nbhost")) { OpenOnline(); _ctx.Net.CreateRoom(); }
@@ -171,6 +226,59 @@ namespace NeonBrawl
             string shots = CommandLine.Value("-nbshots");
             if (!string.IsNullOrEmpty(shots) && float.TryParse(shots, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float every))
                 StartCoroutine(DevShots(Mathf.Max(1f, every)));
+        }
+
+        /// <summary>
+        /// Dev: two PC copies test friends end to end: add by code, accept, invite, join, start, and a
+        /// main-thread freeze on the guest (what a paused phone does) to check that it rejoins.
+        /// </summary>
+        private System.Collections.IEnumerator DevFriends()
+        {
+            var hub = _ctx.Friends;
+            string add = CommandLine.Value("-nbfriend");
+            string freeze = CommandLine.Value("-nbfreeze");
+            bool acceptAll = CommandLine.Has("-nbacceptall"), inviteFirst = CommandLine.Has("-nbinvitefirst");
+            bool joinInvite = CommandLine.Has("-nbjoininvite"), autoStart = CommandLine.Has("-nbautostart");
+            float freezeAfter = 0f;
+            if (freeze != null) float.TryParse(freeze, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out freezeAfter);
+            while (hub.State != FriendsHub.Phase.Ready) yield return null;
+            Debug.Log("[DevFriends] ready, my code " + hub.MyCode);
+            if (joinInvite) hub.Invited += inv => { Debug.Log("[DevFriends] invite from " + inv.FromName + " to room " + inv.Room); JoinFriendRoom(inv.Room); };
+            if (!string.IsNullOrEmpty(add)) hub.AddByCode(add, (ok, msg) => Debug.Log("[DevFriends] add " + add + ": " + ok + " " + msg));
+            var accepted = new System.Collections.Generic.HashSet<string>();
+            bool invited = false, started = false, froze = false;
+            float matchSince = -1f, until = Time.unscaledTime + 900f;
+            while (Time.unscaledTime < until)
+            {
+                if (acceptAll)
+                    foreach (var f in hub.Incoming.ToArray())
+                        if (accepted.Add(f.Id)) { Debug.Log("[DevFriends] accepting " + f.Name); hub.Accept(f); }
+                if (inviteFirst && !invited)
+                    foreach (var f in hub.Friends)
+                        if (f.Online) { invited = true; Debug.Log("[DevFriends] inviting " + f.Name); hub.Invite(f); break; }
+                if (autoStart && !started && _ctx.Net.IsHost && _ctx.Net.Members.Count >= 2 && !_ctx.Net.MatchRunning)
+                {
+                    started = true;
+                    yield return new WaitForSecondsRealtime(2f);
+                    Debug.Log("[DevFriends] starting the match");
+                    _ctx.Net.HostStartMatch();
+                }
+                if (freezeAfter > 0f && !froze && !_ctx.Net.IsHost && _ctx.Net.InRoom && _ctx.Net.MatchRunning)
+                {
+                    if (matchSince < 0f) matchSince = Time.unscaledTime;
+                    if (Time.unscaledTime - matchSince >= freezeAfter)
+                    {
+                        froze = true;
+                        float secs = 14f;
+                        string len = CommandLine.Value("-nbfreezefor");
+                        if (len != null) float.TryParse(len, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out secs);
+                        Debug.Log("[DevFriends] freezing for " + secs + " s (like a paused phone)");
+                        System.Threading.Thread.Sleep(Mathf.RoundToInt(secs * 1000f));
+                        Debug.Log("[DevFriends] unfrozen");
+                    }
+                }
+                yield return new WaitForSecondsRealtime(1f);
+            }
         }
 
         /// <summary>Dev: one managed TLS handshake (what the lobby socket does), with the full error if it fails.</summary>

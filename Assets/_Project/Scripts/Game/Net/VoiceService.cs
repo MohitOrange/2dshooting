@@ -54,6 +54,38 @@ namespace NeonBrawl
             Unsubscribe();
         }
 
+        /// <summary>
+        /// Loads the voice engine while you are still in the menus, so the first online match does not
+        /// freeze on it (a long freeze lets Relay drop the connection).
+        /// </summary>
+        public async void Prewarm()
+        {
+            if (_ctx == null || !_ctx.Prefs.VoiceChat || !Available) return;
+            try
+            {
+                await UgsBoot.SignInAsync();
+                var v = VivoxService.Instance;
+                if (v.InitializationState == VivoxInitializationState.Uninitialized) await v.InitializeAsync();
+            }
+            catch (Exception e) { Debug.LogWarning("[Voice] prewarm: " + e.Message); }
+        }
+
+        /// <summary>
+        /// Phones: asks for the microphone once, before you join a room. Android pauses the game while its
+        /// permission box is up, and a pause of 10 s in a match drops you from the room.
+        /// </summary>
+        public void AskMicEarly()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            if (_ctx == null || !_ctx.Prefs.VoiceChat) return;
+            if (Permission.HasUserAuthorizedPermission(Permission.Microphone)) return;
+            if (PlayerPrefs.GetInt("nb.micasked", 0) == 1) return;
+            PlayerPrefs.SetInt("nb.micasked", 1);
+            PlayerPrefs.Save();
+            Permission.RequestUserPermission(Permission.Microphone);
+#endif
+        }
+
         // ---------------------------------------------------------------- joining
 
         /// <summary>An online match started: join the room's channels (team channel in team battles).</summary>
@@ -107,7 +139,7 @@ namespace NeonBrawl
         {
             try
             {
-                if (UnityServices.State != ServicesInitializationState.Initialized) await UnityServices.InitializeAsync();
+                await UgsBoot.SignInAsync();
                 var v = VivoxService.Instance;
                 if (v.InitializationState == VivoxInitializationState.Uninitialized) await v.InitializeAsync();
                 Subscribe();

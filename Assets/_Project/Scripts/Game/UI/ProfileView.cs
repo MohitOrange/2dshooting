@@ -132,6 +132,7 @@ namespace NeonBrawl
             p.Data.Name = clean;
             p.Save();
             _name.text = clean;
+            Ctx.Friends?.SyncName();
             Ctx.UI.Toast("Name saved: " + clean);
             Ctx.Sfx.PlayUi(SfxId.UiCoin, 0.6f);
         }

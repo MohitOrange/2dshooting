@@ -163,7 +163,8 @@ namespace NeonBrawl
         private int _thumbMap = -1;
         private DailyPopup _daily;
         private RewardFlight _flight;
-        private GameObject _dailyBadge, _missionBadge, _dailyGlow;
+        private GameObject _dailyBadge, _missionBadge, _dailyGlow, _friendBadge;
+        private Text _friendBadgeText;
         private float _dailyOpenAt = -1f;
         private int _flightsLeft, _shownCoins, _shownGems;
         private static bool _dailyAutoShown;
@@ -193,6 +194,7 @@ namespace NeonBrawl
             BuildLogo(safe, art);
             BuildRightColumn(safe, ctx);
             BuildDock(safe, ctx);
+            FriendsStrip.Build(safe, ctx, new Vector2(M, M + TileH + Gap + 6f));
 
             // the rewards popup lives in the safe area; the wallet pills are moved above it so you see coins land
             _daily = DailyPopup.Build(safe, ctx, this);
@@ -319,22 +321,25 @@ namespace NeonBrawl
         {
             var art = ctx.Art;
             var cat = ctx.Catalog;
-            string[] labels = { "LOCKER", "SHOP", "DAILY", "MISSIONS" };
+            string[] labels = { "LOCKER", "SHOP", "DAILY", "MISSIONS", "FRIENDS" };
             Sprite[] icons =
             {
                 cat != null ? cat.Icon(ArtIds.IconShirt) : null,
                 cat != null ? cat.Icon(ArtIds.IconCart) : null,
                 cat != null ? cat.Reward(ArtIds.RewardChest) : null,
                 cat != null ? cat.Icon(ArtIds.IconTrophy) : null,
+                HudArt.Get(HudArt.Icon.Person),
             };
             Color[] accents =
             {
                 new Color(0.42f, 0.9f, 0.45f), new Color(0.38f, 0.68f, 1f), new Color(1f, 0.78f, 0.3f), new Color(1f, 0.46f, 0.36f),
+                new Color(0.78f, 0.56f, 1f),
             };
             Action[] actions =
             {
                 () => ctx.UI.ShowLocker(), () => ctx.UI.ShowShop(),
                 () => _daily.Open(DailyPopup.TabGift), () => _daily.Open(DailyPopup.TabMissions),
+                () => ctx.UI.ShowFriends(ctx.Friends.Incoming.Count > 0 ? FriendsPopup.TabRequests : FriendsPopup.TabFriends),
             };
             for (int i = 0; i < labels.Length; i++)
             {
@@ -364,10 +369,12 @@ namespace NeonBrawl
                 s.Delay = 0.05f * i;
                 if (i >= 2)
                 {
-                    var badge = UIKit.Badge(rt, "!", UIKit.Red, new Vector2(-14f, -12f), Vector2.one, 30).transform.parent.gameObject;
+                    var text = UIKit.Badge(rt, "!", UIKit.Red, new Vector2(-14f, -12f), Vector2.one, 30);
+                    var badge = text.transform.parent.gameObject;
                     badge.AddComponent<Pulse>().Amount = 0.12f;
                     if (i == 2) _dailyBadge = badge;
-                    else _missionBadge = badge;
+                    else if (i == 3) _missionBadge = badge;
+                    else { _friendBadge = badge; _friendBadgeText = text; badge.SetActive(false); }
                 }
             }
         }
@@ -478,6 +485,10 @@ namespace NeonBrawl
 
         private void LateUpdate()
         {
+            // friend requests waiting: a number on the FRIENDS button
+            int requests = Ctx.Friends != null ? Ctx.Friends.Incoming.Count : 0;
+            if (_friendBadge != null && _friendBadge.activeSelf != requests > 0) _friendBadge.SetActive(requests > 0);
+            if (requests > 0 && _friendBadgeText.text != requests.ToString()) _friendBadgeText.text = requests.ToString();
             if (_dailyOpenAt > 0f && Time.unscaledTime >= _dailyOpenAt)
             {
                 _dailyOpenAt = -1f;
@@ -1344,10 +1355,16 @@ namespace NeonBrawl
         private GameObject _consent;
         private Action<bool> _consentAnswer;
 
+        /// <summary>Friends popup and the invite card live here, above every screen.</summary>
+        public FriendsPopup Friends { get; private set; }
+        public InviteCard Invite { get; private set; }
+
         public void Build(GameContext ctx, RectTransform safe)
         {
             var art = ctx.Art;
             BuildConsent(safe, art);
+            Friends = FriendsPopup.Build(safe, ctx);
+            Invite = InviteCard.Build(safe, ctx);
             var bg = UIKit.Panel9(safe, "Toast", ArtIds.PanelDark, Color.white, 2.6f);
             _toastRt = bg.rectTransform;
             UIKit.Place(_toastRt, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -150f), new Vector2(1100f, 90f));

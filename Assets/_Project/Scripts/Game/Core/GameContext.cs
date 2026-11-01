@@ -32,6 +32,7 @@ namespace NeonBrawl
         public NetSession Net;
         public ChatHub Chat;
         public VoiceService Voice;
+        public FriendsHub Friends;
         public readonly MatchEvents Events = new MatchEvents();
     }
 

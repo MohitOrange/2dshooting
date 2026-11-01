@@ -16,7 +16,8 @@
         "Unity.Services.Multiplayer",
         "Unity.Purchasing",
         "Unity.Services.Vivox",
-        "GoogleMobileAds.Mediation.UnityAds.Api"
+        "GoogleMobileAds.Mediation.UnityAds.Api",
+        "Unity.Services.Friends"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

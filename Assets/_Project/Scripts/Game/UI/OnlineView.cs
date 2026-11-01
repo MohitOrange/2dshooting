@@ -22,6 +22,7 @@ namespace NeonBrawl
             public GameObject Root;
             public Image Dot;
             public Text Name, Tag;
+            public GameObject Add;
         }
 
         private NetSession _net;
@@ -30,7 +31,7 @@ namespace NeonBrawl
         private Text _busyText, _code, _players, _mapName, _wait, _startLabel, _hint;
         private RectTransform _spinner, _thumbHolder;
         private Button _start;
-        private GameObject _mapPrev, _mapNext, _copy;
+        private GameObject _mapPrev, _mapNext, _copy, _invite;
         private readonly List<Row> _rows = new List<Row>(NetSession.MaxPlayers);
         private OptionRow _mode, _time, _kills, _bots, _skill, _night, _fog;
         private int _thumbMap = -1;
@@ -75,6 +76,7 @@ namespace NeonBrawl
                 Ctx.Profile.Data.Name = NetIO.CleanName(v);
                 Ctx.Profile.Save();
                 _name.text = Ctx.Profile.Data.Name;
+                Ctx.Friends?.SyncName();
             });
             var info = UIKit.Label(card.transform, "Info", "UP TO 12 PLAYERS\nBOTS FILL THE EMPTY SPOTS\nWIN MORE COINS THAN OFFLINE", 26,
                 new Color(0.82f, 0.88f, 1f), TextAnchor.MiddleCenter);
@@ -129,9 +131,14 @@ namespace NeonBrawl
             UIKit.Place(codeL.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(36f, -40f), new Vector2(300f, 36f));
             _code = UIKit.Title(left.transform, "Code", "", 76, UIKit.Cream, UIKit.Gold, TextAnchor.MiddleLeft);
             UIKit.Place(_code.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(32f, -100f), new Vector2(460f, 90f));
-            var copy = UIKit.ArtButton(left.transform, "Copy", "COPY", ArtIds.PanelBlue, new Vector2(200f, 80f), 34, CopyCode);
-            UIKit.Place((RectTransform)copy.transform, new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(-32f, -96f), new Vector2(200f, 80f));
+            var copy = UIKit.ArtButton(left.transform, "Copy", "COPY", ArtIds.PanelBlue, new Vector2(170f, 80f), 32, CopyCode);
+            UIKit.Place((RectTransform)copy.transform, new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(-262f, -96f), new Vector2(170f, 80f));
             _copy = copy.gameObject;
+            // invite friends without leaving the game (leaving the app for 10 s drops the room)
+            var invite = UIKit.ArtButton(left.transform, "Invite", "INVITE", ArtIds.PanelGold, new Vector2(214f, 80f), 34,
+                () => Ctx.UI.ShowFriends(Ctx.Friends.Friends.Count > 0 ? FriendsPopup.TabFriends : FriendsPopup.TabAdd));
+            UIKit.Place((RectTransform)invite.transform, new Vector2(1f, 1f), new Vector2(1f, 0.5f), new Vector2(-32f, -96f), new Vector2(214f, 80f));
+            _invite = invite.gameObject;
             _players = UIKit.Label(left.transform, "Players", "PLAYERS", 28, Color.white, TextAnchor.MiddleLeft);
             UIKit.Place(_players.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(36f, -170f), new Vector2(700f, 40f));
             for (int i = 0; i < NetSession.MaxPlayers; i++) _rows.Add(BuildRow(left.transform, i, art));
@@ -205,6 +212,16 @@ namespace NeonBrawl
             r.Name.resizeTextMaxSize = 26;
             r.Tag = UIKit.Label(bg.transform, "Tag", "", 20, UIKit.Gold, TextAnchor.MiddleRight);
             UIKit.Place(r.Tag.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), new Vector2(90f, 40f));
+            // "+": send a friend request to someone in the room
+            var add = FriendsArt.Plus(bg.transform, 46f, () =>
+            {
+                if (index >= _net.Members.Count) return;
+                var m = _net.Members[index];
+                Ctx.Friends.AddById(m.PlayerId, m.Name);
+                _rows[index].Add.SetActive(false);
+            });
+            UIKit.Place((RectTransform)add.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-6f, 0f), new Vector2(46f, 46f));
+            r.Add = add.gameObject;
             return r;
         }
 
@@ -255,8 +272,10 @@ namespace NeonBrawl
             {
                 p.Data.Name = "BRAWLER" + UnityEngine.Random.Range(100, 1000);
                 p.Save();
+                Ctx.Friends?.SyncName();
             }
             _name.text = p.Data.Name;
+            Ctx.Voice?.AskMicEarly();
             _net.Changed += Refresh;
             _thumbMap = -1;
             Refresh();
@@ -286,13 +305,19 @@ namespace NeonBrawl
             _entry.SetActive(!room);
             _room.SetActive(room);
             if (Bar.Title != null) Bar.Title.text = room ? (_net.QuickRoom ? "PUBLIC ROOM" : "ROOM") : "ONLINE";
-            if (room && !_wasInRoom) Ctx.Sfx.PlayUi(SfxId.UiOpen, 0.8f);
+            if (room && !_wasInRoom)
+            {
+                Ctx.Sfx.PlayUi(SfxId.UiOpen, 0.8f);
+                if (!_net.QuickRoom) Ctx.UI.Toast("Keep the game open while you wait. Tap INVITE to call friends.");
+            }
             _wasInRoom = room;
             if (!room) return;
 
             bool host = _net.IsHost;
             _code.text = string.IsNullOrEmpty(_net.Code) ? "…" : _net.Code;
             _copy.SetActive(!string.IsNullOrEmpty(_net.Code) && _net.Code != "LAN");
+            _invite.SetActive(_copy.activeSelf);
+            var hub = Ctx.Friends;
             var members = _net.Members;
             int bots = Mathf.Min(_net.Settings.BotCount, NetSession.MaxPlayers - members.Count);
             _players.text = "PLAYERS  " + members.Count + " / " + NetSession.MaxPlayers + (bots > 0 ? "     + " + bots + " BOTS" : "");
@@ -308,8 +333,12 @@ namespace NeonBrawl
                 r.Name.color = me ? new Color(1f, 0.92f, 0.35f) : Color.white;
                 r.Dot.color = m.Look.Outfit;
                 bool muted = !me && Ctx.Chat.IsMuted(m.ClientId);
-                r.Tag.text = muted ? "MUTED" : (i == 0 ? "HOST" : (me ? "YOU" : ""));
-                r.Tag.color = muted ? UIKit.Red : (i == 0 ? UIKit.Gold : UIKit.Sky);
+                bool friend = !me && !string.IsNullOrEmpty(m.PlayerId) && hub.IsFriend(m.PlayerId);
+                bool canAdd = !me && !friend && !string.IsNullOrEmpty(m.PlayerId) && hub.State == FriendsHub.Phase.Ready && !hub.IsPending(m.PlayerId);
+                if (r.Add.activeSelf != canAdd) r.Add.SetActive(canAdd);
+                r.Tag.text = muted ? "MUTED" : (i == 0 ? "HOST" : (me ? "YOU" : (friend ? "FRIEND" : "")));
+                r.Tag.color = muted ? UIKit.Red : (i == 0 ? UIKit.Gold : (friend ? FriendsArt.Online : UIKit.Sky));
+                r.Tag.rectTransform.anchoredPosition = new Vector2(canAdd ? -58f : -14f, 0f);
             }
 
             var s = _net.Settings;

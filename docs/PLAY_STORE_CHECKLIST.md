@@ -1,6 +1,6 @@
 # Neon Brawl – Play Store checklist
 
-Package: `com.mohitgames.neonbrawl` · Version 1.0.0 (code 1) · Unity 6000.5.8f1
+Package: `com.mohitgames.neonbrawl` · Version 1.0.1 (code 2) · Unity 6000.5.8f1
 
 ## Already done in the project
 - App icon (legacy, round, adaptive) from `Assets/_Project/Art/UI/app_icon.png`; 512 px store icon: `docs/store/icon_512.png`.
@@ -11,6 +11,7 @@ Package: `com.mohitgames.neonbrawl` · Version 1.0.0 (code 1) · Unity 6000.5.8f
   - Unity Ads adapter for AdMob mediation is installed (Unity Ads game id 6216551 Android / 6216550 iOS).
   - All ids live in one place: `Assets/_Project/Scripts/Game/Core/AdMobAds.cs` → `AdIds`.
 - Privacy policy: `docs/privacy-policy.html` → https://mohitorange.github.io/2dshooting/privacy-policy.html (after Pages is on).
+- Friends (Unity Friends 1.3.0): friend codes, requests, online status, invites. Needs **Friends** switched on for the project in the Unity Cloud dashboard (it already works in testing).
 - In-app purchases (Unity IAP): `gems_80`, `gems_500`, `gems_1200`, `gems_2500` (consumable), `remove_ads` (non-consumable).
 
 ## 1. GitHub Pages (privacy policy link)

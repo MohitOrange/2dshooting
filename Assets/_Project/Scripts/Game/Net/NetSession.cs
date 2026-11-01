@@ -69,6 +69,18 @@ namespace NeonBrawl
         /// <summary>Connection lost or room closed, with a message for the player.</summary>
         public event Action<string> Lost;
 
+        /// <summary>True while a dropped guest is trying to get back into its room.</summary>
+        public bool Reconnecting => _reconnecting;
+        /// <summary>Fired with true when a rejoin starts and false when it ends (either way).</summary>
+        public event Action<bool> ReconnectChanged;
+
+        private bool _reconnecting;
+
+        // keep-alive: Unity Transport only logs a dead Relay link ("not connected") and never drops it,
+        // so both sides say hello every 2 s and treat a long silence as a lost connection
+        private const float PingEvery = 2f, GuestSilence = 12f, HostSilence = 15f;
+        private float _lastFromHost, _lastFromGuests, _nextPing, _lastFrame, _enteredAt, _resumedAt = -999f;
+
         public NetMatch Match
         {
             get => _match;
@@ -136,8 +148,7 @@ namespace NeonBrawl
                     return;
                 }
                 _session = session;
-                _session.RemovedFromSession += OnSessionGone;
-                _session.Deleted += OnSessionGone;
+                Hook(_session);
                 EnterRoom(_session.IsHost, _session.Code, quick || (!host && !_session.IsPrivate));
             }
             catch (Exception e)
@@ -174,6 +185,7 @@ namespace NeonBrawl
             _leaving = false;
             IsHost = host;
             Code = code ?? "";
+            _lastFromHost = _lastFromGuests = _enteredAt = Time.realtimeSinceStartup;
             QuickRoom = quick;
             Debug.Log("[NeonBrawl] room " + (string.IsNullOrEmpty(Code) ? "?" : Code) + (host ? " hosted" : " joined") + (quick ? " (quick)" : ""));
             MatchRunning = false;
@@ -198,6 +210,7 @@ namespace NeonBrawl
         public async void Leave()
         {
             if (State == Status.Offline) return;
+            StopReconnect();
             if (IsHost && _nm != null && _nm.IsServer && Members.Count > 1)
             {
                 // tell guests why they are being dropped, and give the message a moment to leave
@@ -251,21 +264,105 @@ namespace NeonBrawl
         private void OnSessionGone()
         {
             if (_leaving || State == Status.Offline) return;
-            LoseConnection(IsHost ? "The room was closed" : "The host closed the room");
+            LoseConnection(IsHost ? "The room was closed" : "The host closed the room", false);
         }
 
-        private void LoseConnection(string reason)
+        private void LoseConnection(string reason, bool allowRetry = true)
         {
-            if (State == Status.Offline) return;
-            if (!string.IsNullOrEmpty(_closeReason)) reason = _closeReason;
+            if (State == Status.Offline || _reconnecting) return;
+            // the host said goodbye or turned us away (full room): that is final
+            bool told = !string.IsNullOrEmpty(_closeReason);
+            if (told) reason = _closeReason;
             _closeReason = null;
+            string code = Code;
+            bool quick = QuickRoom, wasHost = IsHost;
             var s = _session;
             _session = null;
+            Unhook(s);
             ResetRoom();
+            _ = ShutdownQuietly();
+            if (allowRetry && !told && !wasHost && !string.IsNullOrEmpty(code) && code != "LAN")
+            {
+                // a guest dropped (phone paused, a popup, bad signal): get back in with the same code
+                SetStatus(Status.Busy, "RECONNECTING…");
+                TryReconnect(s, code, quick, reason);
+                return;
+            }
             SetStatus(Status.Offline, "");
             if (s != null) _ = LeaveQuietly(s);
-            _ = ShutdownQuietly();
             Lost?.Invoke(reason);
+        }
+
+        /// <summary>Up to three tries to rejoin a room by its code; a running match is rejoined as a late join.</summary>
+        private async void TryReconnect(ISession old, string code, bool quick, string reason)
+        {
+            _reconnecting = true;
+            ReconnectChanged?.Invoke(true);
+            Debug.Log("[NeonBrawl] connection lost, rejoining " + code);
+            if (old != null) await Task.WhenAny(LeaveQuietly(old), Task.Delay(5000)); // free the old seat first
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                await Task.Delay(attempt == 0 ? 400 : 2500);
+                if (!_reconnecting || State != Status.Busy) return; // the player gave up
+                try
+                {
+                    await UgsBoot.SignInAsync();
+                    for (int i = 0; i < 240 && _nm != null && _nm.ShutdownInProgress; i++) await Task.Yield();
+                    EnsureNetworkManager();
+                    var task = MultiplayerService.Instance.JoinSessionByCodeAsync(code);
+                    if (await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(15))) != task)
+                    {
+                        _ = LeaveWhenDone(task);
+                        throw new TimeoutException("Room connection timed out");
+                    }
+                    var session = await task;
+                    if (!_reconnecting || State != Status.Busy)
+                    {
+                        _ = LeaveQuietly(session);
+                        return;
+                    }
+                    _session = session;
+                    Hook(_session);
+                    _reconnecting = false;
+                    EnterRoom(false, session.Code, quick);
+                    ReconnectChanged?.Invoke(false);
+                    Debug.Log("[NeonBrawl] rejoined " + code + " on try " + (attempt + 1));
+                    return;
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("[NeonBrawl] rejoin try " + (attempt + 1) + " failed: " + e.Message);
+                    await ShutdownQuietly();
+                    if (Friendly(e) == "No room with that code") { reason = "The host left the game"; break; }
+                }
+            }
+            if (!_reconnecting) return;
+            _reconnecting = false;
+            ReconnectChanged?.Invoke(false);
+            ResetRoom();
+            SetStatus(Status.Offline, "");
+            Lost?.Invoke(reason);
+        }
+
+        private void StopReconnect()
+        {
+            if (!_reconnecting) return;
+            _reconnecting = false;
+            ReconnectChanged?.Invoke(false);
+        }
+
+        private void Hook(ISession s)
+        {
+            if (s == null) return;
+            s.RemovedFromSession += OnSessionGone;
+            s.Deleted += OnSessionGone;
+        }
+
+        private void Unhook(ISession s)
+        {
+            if (s == null) return;
+            s.RemovedFromSession -= OnSessionGone;
+            s.Deleted -= OnSessionGone;
         }
 
         /// <summary>A join that finished after we gave up: leave it again.</summary>
@@ -284,18 +381,7 @@ namespace NeonBrawl
             try { await s.LeaveAsync(); } catch (Exception) { }
         }
 
-        private async Task EnsureSignedIn()
-        {
-            if (UnityServices.State == ServicesInitializationState.Uninitialized)
-            {
-                var options = new InitializationOptions();
-                string profile = CommandLine.Value("-nbprofile");
-                if (!string.IsNullOrEmpty(profile)) options.SetProfile(profile);
-                await UnityServices.InitializeAsync(options);
-            }
-            while (UnityServices.State == ServicesInitializationState.Initializing) await Task.Yield();
-            if (!AuthenticationService.Instance.IsSignedIn) await AuthenticationService.Instance.SignInAnonymouslyAsync();
-        }
+        private static Task EnsureSignedIn() => UgsBoot.SignInAsync();
 
         private void EnsureNetworkManager()
         {
@@ -303,6 +389,11 @@ namespace NeonBrawl
             var go = new GameObject("NetworkManager");
             go.SetActive(false);
             _transport = go.AddComponent<UnityTransport>();
+            // Relay keeps a paused player alive while the others keep sending to them, so the limit is this
+            // timeout: long enough that a phone left for half a minute (sending the code in WhatsApp) comes
+            // back to the same match; longer drops rejoin by themselves (TryReconnect)
+            _transport.DisconnectTimeoutMS = 45000;
+            _transport.HeartbeatTimeoutMS = 500;
             _nm = go.AddComponent<NetworkManager>();
             _nm.NetworkConfig = new NetworkConfig
             {
@@ -318,6 +409,7 @@ namespace NeonBrawl
             _nm.OnClientConnectedCallback += OnClientConnected;
             _nm.OnClientDisconnectCallback += OnClientDisconnected;
             _nm.OnClientStopped += OnStopped;
+            _nm.OnTransportFailure += OnTransportFailure;
             _nm.OnServerStopped += OnStopped;
         }
 
@@ -346,7 +438,20 @@ namespace NeonBrawl
                 BroadcastRoom();
                 if (MatchRunning) _ctx.Events.RaiseToast(who + " left");
             }
-            else if (id == _nm.LocalClientId && !_leaving) LoseConnection("Lost connection to the room");
+            else if (id == _nm.LocalClientId && !_leaving)
+            {
+                string why = _nm.DisconnectReason;
+                if (!string.IsNullOrEmpty(why) && string.IsNullOrEmpty(_closeReason)) _closeReason = why; // e.g. "Room is full"
+                LoseConnection("Lost connection to the room");
+            }
+        }
+
+        /// <summary>Relay said our allocation is gone (long pause, network change): rejoin as a guest.</summary>
+        private void OnTransportFailure()
+        {
+            if (_leaving || State == Status.Offline) return;
+            Debug.Log("[NeonBrawl] transport failure (Relay allocation lost)");
+            LoseConnection(IsHost ? "Connection lost. The room closed." : "Lost connection to the room", !IsHost);
         }
 
         private void OnStopped(bool wasHost)
@@ -361,7 +466,8 @@ namespace NeonBrawl
         {
             ClientId = id,
             Name = NetIO.CleanName(_ctx.Profile.Data.Name),
-            Look = _ctx.Profile.Look(_ctx.Profile.OutfitColor)
+            Look = _ctx.Profile.Look(_ctx.Profile.OutfitColor),
+            PlayerId = UgsBoot.PlayerId
         };
 
         private int IndexOf(ulong clientId)
@@ -387,6 +493,7 @@ namespace NeonBrawl
             {
                 w.WriteValueSafe(me.Name);
                 NetIO.Write(ref w, me.Look);
+                w.WriteValueSafe(me.PlayerId ?? "");
                 SendToHost(ref w, NetworkDelivery.ReliableSequenced);
             }
         }
@@ -417,6 +524,7 @@ namespace NeonBrawl
                     w.WriteValueSafe(Members[i].ClientId);
                     w.WriteValueSafe(Members[i].Name);
                     NetIO.Write(ref w, Members[i].Look);
+                    w.WriteValueSafe(Members[i].PlayerId ?? "");
                 }
                 SendToClients(ref w, NetworkDelivery.ReliableSequenced);
             }
@@ -475,8 +583,55 @@ namespace NeonBrawl
 
         private void Update()
         {
+            KeepAlive();
             if (!IsHost || State != Status.InRoom || MatchRunning || _autoStartAt <= 0f) return;
             if (Time.unscaledTime >= _autoStartAt) HostStartMatch();
+        }
+
+        private void KeepAlive()
+        {
+            float now = Time.realtimeSinceStartup;
+            bool resumed = now - _lastFrame > 4f; // the app was paused (or froze): give the link a moment
+            _lastFrame = now;
+            if (State != Status.InRoom || _nm == null || Code == "LAN") return;
+            if (!_nm.IsListening)
+            {
+                // networking stopped under us (e.g. Relay said the allocation is gone) without a callback
+                if (!_nm.ShutdownInProgress && !_leaving && now - _enteredAt > 5f)
+                {
+                    Debug.Log("[NeonBrawl] networking stopped by itself");
+                    LoseConnection("Lost connection to the room", !IsHost);
+                }
+                return;
+            }
+            if (resumed)
+            {
+                _lastFromHost = _lastFromGuests = now;
+                _resumedAt = now;
+            }
+            if (now >= _nextPing)
+            {
+                _nextPing = now + PingEvery;
+                var w = NetIO.Writer(Msg.Ping, 4);
+                using (w)
+                {
+                    if (IsHost) SendToClients(ref w, NetworkDelivery.Unreliable);
+                    else SendToHost(ref w, NetworkDelivery.Unreliable);
+                }
+            }
+            if (!IsHost && _nm.IsConnectedClient && now - _lastFromHost > GuestSilence)
+            {
+                Debug.Log("[NeonBrawl] no word from the host for " + GuestSilence + " s: rejoining");
+                LoseConnection("Lost connection to the room");
+            }
+            else if (IsHost && Members.Count > 1 && now - _resumedAt < 40f && now - _lastFromGuests > HostSilence)
+            {
+                // only right after the host itself was paused: then total silence means its own link died
+                // (a silent guest on its own is just a guest who paused; the transport times them out)
+                // our own Relay link died while the game was in the background; the room cannot be saved
+                Debug.Log("[NeonBrawl] no word from any guest for " + HostSilence + " s: closing the room");
+                LoseConnection("Connection lost while the game was in the background", false);
+            }
         }
 
         // ---------------------------------------------------------------- messages
@@ -484,8 +639,11 @@ namespace NeonBrawl
         private void OnMessage(ulong sender, FastBufferReader reader)
         {
             if (State == Status.Offline) return;
+            if (IsHost) _lastFromGuests = Time.realtimeSinceStartup;
+            else _lastFromHost = Time.realtimeSinceStartup;
             reader.ReadValueSafe(out byte b);
             var type = (Msg)b;
+            if (type == Msg.Ping) return;
             try
             {
                 switch (type)
@@ -537,7 +695,19 @@ namespace NeonBrawl
         {
             r.ReadValueSafe(out string name);
             var look = NetIO.ReadLook(ref r);
-            var m = new RoomMember { ClientId = sender, Name = NetIO.CleanName(name), Look = look };
+            r.ReadValueSafe(out string playerId);
+            var m = new RoomMember { ClientId = sender, Name = NetIO.CleanName(name), Look = look, PlayerId = playerId ?? "" };
+            if (!string.IsNullOrEmpty(m.PlayerId))
+                for (int k = Members.Count - 1; k >= 0; k--)
+                {
+                    if (Members[k].ClientId == sender || Members[k].PlayerId != m.PlayerId) continue;
+                    ulong old = Members[k].ClientId;
+                    Members.RemoveAt(k);
+                    _match?.HostPlayerLeft(old);
+                    if (_nm.ConnectedClients.ContainsKey(old)) _nm.DisconnectClient(old);
+                    Debug.Log("[NeonBrawl] " + m.Name + " rejoined; old seat " + old + " removed");
+                }
+            _ctx.Friends?.AddRecent(m.PlayerId, m.Name);
             int i = IndexOf(sender);
             if (i >= 0) Members[i] = m;
             else
@@ -574,7 +744,9 @@ namespace NeonBrawl
                 r.ReadValueSafe(out m.ClientId);
                 r.ReadValueSafe(out m.Name);
                 m.Look = NetIO.ReadLook(ref r);
+                r.ReadValueSafe(out m.PlayerId);
                 Members.Add(m);
+                if (m.ClientId != LocalId) _ctx.Friends?.AddRecent(m.PlayerId, m.Name);
             }
             StatusText = running ? "MATCH IN PROGRESS…" : "";
             Changed?.Invoke();
@@ -657,6 +829,7 @@ namespace NeonBrawl
         public void Cancel()
         {
             if (State != Status.Busy) return;
+            StopReconnect();
             SetStatus(Status.Offline, "");
         }
 
