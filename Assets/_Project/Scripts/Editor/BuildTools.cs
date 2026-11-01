@@ -59,10 +59,16 @@ namespace NeonBrawl.EditorTools
         ///  2. Builds/Android/NeonBrawl.apk          – release build with the real AdMob ads
         ///  3. Builds/Android/NeonBrawl.aab          – Play Store upload, only when an upload key is set up
         ///     (Keystore/keystore.properties with storeFile, storePassword, keyAlias, keyPassword; never commit it)
-        ///  4. Builds/Windows/NeonBrawl.exe          – PC test build
+        ///  4. Builds/PC/NeonBrawl.exe               – PC test build
         /// </summary>
         [MenuItem("Neon Brawl/Build/Final (Android test + release + AAB, Windows)")]
-        public static void BuildFinal()
+        public static void BuildFinal() => BuildFinalCore(true);
+
+        /// <summary>Same as <see cref="BuildFinal"/> without the PC build.</summary>
+        [MenuItem("Neon Brawl/Build/Final Android only")]
+        public static void BuildFinalAndroid() => BuildFinalCore(false);
+
+        private static void BuildFinalCore(bool pc)
         {
             var original = EditorUserBuildSettings.activeBuildTarget;
             PlayerSettings.bundleVersion = Version;
@@ -84,7 +90,7 @@ namespace NeonBrawl.EditorTools
             {
                 File.AppendAllText("Builds/build_history.txt", $"{System.DateTime.Now:u} AAB skipped: no {KeystoreProperties} (upload key)" + System.Environment.NewLine);
             }
-            ok &= Log(Build(BuildTarget.StandaloneWindows64, "Builds/Windows/NeonBrawl.exe"));
+            if (pc) ok &= Log(Build(BuildTarget.StandaloneWindows64, "Builds/PC/NeonBrawl.exe"));
 
             if (EditorUserBuildSettings.activeBuildTarget != original)
                 EditorUserBuildSettings.SwitchActiveBuildTarget(BuildPipeline.GetBuildTargetGroup(original), original);

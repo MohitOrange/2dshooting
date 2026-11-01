@@ -115,7 +115,14 @@ namespace NeonBrawl
             _personalized = personalized;
             ApplyRequestConfiguration();
             ApplyUnityAdsPrivacy();
+            RequestConsent();
+            // a returning player who already answered can start loading at once
+            StartSdk();
+        }
 
+        /// <summary>Asks Google whether a consent form is needed here; retries every minute while offline.</summary>
+        private void RequestConsent()
+        {
             var request = new ConsentRequestParameters { TagForUnderAgeOfConsent = false };
             ConsentInformation.Update(request, error => Post(() =>
             {
@@ -125,10 +132,9 @@ namespace NeonBrawl
                     if (formError != null) Debug.LogWarning("[Ads] consent form: " + formError.Message);
                     PrivacyOptionsRequired = ConsentInformation.PrivacyOptionsRequirementStatus == PrivacyOptionsRequirementStatus.Required;
                     StartSdk();
+                    if (!_started) Invoke(nameof(RequestConsent), 60f); // first launch without internet
                 }));
             }));
-            // a returning player who already answered can start loading at once
-            StartSdk();
         }
 
         private void ApplyRequestConfiguration()

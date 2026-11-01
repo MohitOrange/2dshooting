@@ -1,0 +1,12 @@
+# Google Mobile Ads Unity plugin: its Android library also carries helpers for Google's "next-gen" ads SDK.
+# The game uses the standard SDK (play-services-ads), so those references are expected to be missing.
+-dontwarn com.google.android.libraries.ads.mobile.sdk.**
+-dontwarn com.google.unity.ads.nextgen.**
+
+# Classes the game reaches from C# by name (JNI) must survive R8.
+-keep class com.google.unity.** { *; }
+-keep public class com.google.android.gms.ads.** { public *; }
+-keep class com.google.android.ump.** { *; }
+-keep class com.google.ads.mediation.unity.** { *; }
+-keep class com.unity3d.ads.** { *; }
+-keep class com.unity3d.services.** { *; }
