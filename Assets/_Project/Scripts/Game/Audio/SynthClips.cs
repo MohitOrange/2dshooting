@@ -50,6 +50,11 @@ namespace NeonBrawl
             c[(int)SfxId.Step] = Step("step", 0.12f);
             c[(int)SfxId.Crackle] = Crackle("crackle", 0.5f);
             c[(int)SfxId.Thump] = Thud("thump", 0.18f, 150f, 60f, 20f);
+            c[(int)SfxId.PowerSpawn] = Sweep("power_spawn", 0.45f, 320f, 1500f);
+            c[(int)SfxId.PowerPick] = Chime("power_pick", new[] { 784f, 988f, 1175f, 1568f }, 0.05f, 0.4f);
+            c[(int)SfxId.PowerUse] = PowerUp("power_use", 0.6f);
+            c[(int)SfxId.Freeze] = Ice("freeze", 0.75f);
+            c[(int)SfxId.ShieldPing] = Bell("shield_ping", 0.3f, 2400f);
             return c;
         }
 
@@ -88,6 +93,53 @@ namespace NeonBrawl
                     float nz = Noise();
                     hp += a * (nz - hp);
                     d[start + i] += (nz - hp) * amp * Mathf.Exp(-t * 260f);
+                }
+            }
+            return Make(name, d);
+        }
+
+        /// <summary>Power-up: a rising sweep with a shimmer on top and a soft whoosh.</summary>
+        private static AudioClip PowerUp(string name, float dur)
+        {
+            int n = (int)(dur * Rate);
+            var d = new float[n];
+            float ph1 = 0f, ph2 = 0f, lp = 0f, a = Alpha(3000f);
+            for (int i = 0; i < n; i++)
+            {
+                float t = (float)i / Rate, k = t / dur;
+                float f = Mathf.Lerp(220f, 1100f, k * k * (3f - 2f * k));
+                ph1 += 2f * Mathf.PI * f / Rate;
+                ph2 += 2f * Mathf.PI * f * 1.5f / Rate;
+                float env = Mathf.Clamp01(t * 30f) * (1f - k) * (1f - k * 0.3f);
+                float shimmer = Mathf.Sin(ph2) * 0.35f * (0.5f + 0.5f * Mathf.Sin(t * 70f));
+                float nz = Noise();
+                lp += a * (nz - lp);
+                d[i] = env * (Mathf.Sin(ph1) * 0.6f + shimmer + (nz - lp) * 0.25f * Mathf.Exp(-t * 6f));
+            }
+            return Make(name, d);
+        }
+
+        /// <summary>Frost nova: a cold crack, then glassy tinkles fading out.</summary>
+        private static AudioClip Ice(string name, float dur)
+        {
+            int n = (int)(dur * Rate);
+            var d = new float[n];
+            float hp = 0f, a = Alpha(2200f);
+            for (int i = 0; i < n; i++)
+            {
+                float t = (float)i / Rate;
+                float nz = Noise();
+                hp += a * (nz - hp);
+                d[i] = (nz - hp) * 0.9f * Mathf.Exp(-t * 28f);
+            }
+            float[] bells = { 2093f, 2637f, 3136f, 3951f, 2349f, 3520f };
+            for (int b = 0; b < bells.Length; b++)
+            {
+                int start = (int)((0.02f + b * 0.06f) * Rate);
+                for (int i = start; i < n; i++)
+                {
+                    float t = (float)(i - start) / Rate;
+                    d[i] += Mathf.Sin(2f * Mathf.PI * bells[b] * t) * 0.22f * Mathf.Exp(-t * 9f);
                 }
             }
             return Make(name, d);

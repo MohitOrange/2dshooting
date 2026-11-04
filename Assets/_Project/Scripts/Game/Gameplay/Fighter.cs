@@ -40,6 +40,10 @@ namespace NeonBrawl
         public FighterMotor Motor { get; private set; }
         public FighterVisual Visual { get; private set; }
         public WeaponHolder Weapons { get; private set; }
+        public FighterPowers Powers { get; private set; }
+        /// <summary>When this fighter last took a step / fired (the minimap shows footprints and gunfire).</summary>
+        public float LastStepTime { get; private set; } = -99f;
+        public float LastShotTime = -99f;
 
         public Vector2 Position => Body.position;
         public Vector2 Velocity => IsPuppet ? _netVel : Body.linearVelocity;
@@ -99,6 +103,8 @@ namespace NeonBrawl
             f.Motor.Init(rb, ctx.Config.Player);
             f.Visual.Build(ctx.Art, ctx.Catalog, look, name, nameColor);
             f.Weapons.Init(ctx, f);
+            f.Powers = go.AddComponent<FighterPowers>();
+            f.Powers.Init(ctx, f);
             f.Alive = false;
             f.Visual.SetDead(true);
             f.Visual.SetVisible(false);
@@ -116,6 +122,7 @@ namespace NeonBrawl
             LastAttacker = null;
             NearbyWeaponPickup = null;
             _burnTime = 0f;
+            Powers.ClearAll();
             gameObject.layer = Layers.Fighters;
             Motor.Teleport(position);
             Motor.ResetDash();
@@ -227,6 +234,7 @@ namespace NeonBrawl
         public void NetRemove()
         {
             Alive = false;
+            Powers.ClearAll();
             NearbyWeaponPickup = null;
             gameObject.SetActive(false);
         }
@@ -301,6 +309,7 @@ namespace NeonBrawl
             Health = 0f;
             DeathTime = Time.time;
             _burnTime = 0f;
+            Powers.ClearAll();
             NearbyWeaponPickup = null;
             gameObject.layer = Layers.Corpses;
             Motor.SetMove(Vector2.zero);
@@ -309,6 +318,12 @@ namespace NeonBrawl
             Visual.SetDead(true);
             _ctx.Fx.DeathBurst(Position, d, OutfitColor);
             _ctx.Sfx.Play(SfxId.Death, Position, 0.9f);
+        }
+
+        /// <summary>LIFE SURGE: this hit cannot finish the fighter.</summary>
+        public void KeepAlive()
+        {
+            if (Alive && Health < 1f) Health = 1f;
         }
 
         public bool Heal(float amount)
@@ -349,7 +364,8 @@ namespace NeonBrawl
             {
                 if (SpawnProtection > 0f) SpawnProtection -= dt;
 
-                if (Frozen || dt <= 0f)
+                bool stunned = Frozen || Powers.Frozen;
+                if (stunned || dt <= 0f)
                 {
                     Input = new FighterInput { Aim = AimDir };
                 }
@@ -360,9 +376,10 @@ namespace NeonBrawl
                 if (Input.HasAim && Input.Aim.sqrMagnitude > 0.0001f) AimDir = Input.Aim.normalized;
                 Visual.SetAim(AimDir);
 
-                if (!Frozen && dt > 0f)
+                if (!stunned && dt > 0f)
                 {
                     Weapons.Tick(Input, dt);
+                    if (Input.Power && _ctx.Match != null) _ctx.Match.PowerUps.UseHeld(this);
                     if (Input.Dash)
                     {
                         Vector2 d = Input.Move.sqrMagnitude > 0.04f ? Input.Move : AimDir;
@@ -374,7 +391,7 @@ namespace NeonBrawl
                     }
                     if (Input.Interact && _ctx.Match != null) _ctx.Match.Pickups.TrySwapWeapon(this);
                 }
-                Motor.SetMove(Frozen ? Vector2.zero : Input.Move * Weapons.MoveMultiplier);
+                Motor.SetMove(stunned ? Vector2.zero : Input.Move * (Weapons.MoveMultiplier * Powers.SpeedMult));
 
                 speed01 = Mathf.Clamp01(Velocity.magnitude / _ctx.Config.Player.MoveSpeed);
                 TickBurn(dt);
@@ -402,7 +419,8 @@ namespace NeonBrawl
             if (speed01 < 0.5f || !Visual.isActiveAndEnabled) return;
             _stepTimer -= dt;
             if (_stepTimer > 0f) return;
-            _stepTimer = Motor.IsDashing ? 0.03f : 0.26f;
+            _stepTimer = Motor.IsDashing ? 0.03f : (Powers.SpeedMult > 1f ? 0.19f : 0.26f);
+            LastStepTime = Time.time;
             _ctx.Fx.Dust(Position - Velocity.normalized * 0.25f, Motor.IsDashing ? 0.9f : 0.5f);
             if (Motor.IsDashing) return;
             // footsteps: always yours, others only when you can see them (no hearing through walls)

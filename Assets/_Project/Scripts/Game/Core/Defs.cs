@@ -18,7 +18,9 @@ namespace NeonBrawl
         Step, Crackle, Thump,
         // recorded-style sounds (Resources/Sfx, made by Tools/Sfx/gen-sfx.js); new ids go at the end
         ShotSmg, ShotCannon, ShotLmg, Pump, Bolt, Shell, ShellPlastic, Ricochet, Whiz,
-        StepSand, StepSnow, StepHard, Count
+        StepSand, StepSnow, StepHard,
+        // power-ups (synthesized)
+        PowerSpawn, PowerPick, PowerUse, Freeze, ShieldPing, Count
     }
 
     /// <summary>What the ground is made of, for footsteps.</summary>
@@ -77,11 +79,13 @@ namespace NeonBrawl
         public bool Grenade;
         public bool Melee;
         public bool Interact;
+        /// <summary>Use the power waiting in the POWER slot.</summary>
+        public bool Power;
         public float ThrowDistance;
 
         public void ClearPulses()
         {
-            Dash = Reload = Swap = Grenade = Melee = Interact = false;
+            Dash = Reload = Swap = Grenade = Melee = Interact = Power = false;
         }
     }
 

@@ -104,7 +104,7 @@ namespace NeonBrawl
         }
 
         private static bool Targetable(Fighter self, MatchController match, Fighter f) =>
-            f != self && f.Alive && f.SpawnProtection <= 0f && match.AreEnemies(self, f);
+            f != self && f.Alive && f.SpawnProtection <= 0f && match.AreEnemies(self, f) && !f.Powers.Ghost;
 
         /// <summary>Nearest enemy you can see on screen. The current target wins ties so the aim does not flicker.</summary>
         private Fighter Nearest(Fighter self, MatchController match, float reach, Fighter current)
@@ -170,7 +170,7 @@ namespace NeonBrawl
             for (int i = 0; i < fighters.Count; i++)
             {
                 var f = fighters[i];
-                if (f == self || !f.Alive || !match.AreEnemies(self, f)) continue;
+                if (f == self || !f.Alive || !match.AreEnemies(self, f) || f.Powers.Ghost) continue;
                 Vector2 to = f.Position - self.Position;
                 float dist = to.magnitude;
                 if (dist < 0.3f || dist > range) continue;

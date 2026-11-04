@@ -63,11 +63,11 @@ namespace NeonBrawl
     /// </summary>
     public sealed class SettingsView : MonoBehaviour
     {
-        private static readonly string[] Tabs = { "GAME", "AUDIO", "CONTROLS", "PRIVACY" };
+        private static readonly string[] Tabs = { "GAME", "AUDIO", "CONTROLS", "PRIVACY", "ABOUT" };
 
         private GameContext _ctx;
-        private readonly RectTransform[] _pages = new RectTransform[4];
-        private readonly Button[] _tabs = new Button[4];
+        private readonly RectTransform[] _pages = new RectTransform[5];
+        private readonly Button[] _tabs = new Button[5];
         private int _tab;
 
         public void Build(GameContext ctx, RectTransform safe)
@@ -95,8 +95,8 @@ namespace NeonBrawl
             for (int i = 0; i < Tabs.Length; i++)
             {
                 int k = i;
-                var b = UIKit.ArtButton(side.transform, Tabs[i], Tabs[i], ArtIds.PanelSlate, new Vector2(290f, 104f), 38, () => ShowTab(k));
-                UIKit.Place((RectTransform)b.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -22f - i * 124f), new Vector2(290f, 104f));
+                var b = UIKit.ArtButton(side.transform, Tabs[i], Tabs[i], ArtIds.PanelSlate, new Vector2(290f, 96f), 36, () => ShowTab(k));
+                UIKit.Place((RectTransform)b.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -20f - i * 113f), new Vector2(290f, 96f));
                 _tabs[i] = b;
             }
 
@@ -111,11 +111,12 @@ namespace NeonBrawl
             var p = ctx.Prefs;
 
             // GAME
-            var g = new Rows(_pages[0]);
+            var g = new Rows(_pages[0]) { Height = Application.isMobilePlatform ? 116f : 100f };
             g.Segment("SCREEN SHAKE", "How much the camera shakes on hits and blasts", new[] { "OFF", "LOW", "FULL" },
                 p.ShakeStrength <= 0f ? 0 : (p.ShakeStrength < 0.9f ? 1 : 2), i => { p.ShakeStrength = i == 0 ? 0f : (i == 1 ? 0.5f : 1f); p.Save(); });
             g.Toggle("VIBRATION", "Buzz on hits, kills and explosions", p.Vibration, v => { p.Vibration = v; p.Save(); });
             g.Toggle("BLOOD", "Off shows sparks instead", p.Blood, v => { p.Blood = v; p.Save(); });
+            g.Toggle("MINIMAP", "Map in the corner: footsteps and gunfire near you", p.Minimap, v => { p.Minimap = v; p.Save(); ctx.UI.RefreshMinimap(); });
             g.Toggle("SHOW FPS", "Frame rate in the corner of the match", p.ShowFps, v => { p.ShowFps = v; p.Save(); });
             if (!Application.isMobilePlatform)
                 g.Toggle("FULL SCREEN", "PC: play in a window or full screen", Screen.fullScreen, v =>
@@ -136,7 +137,7 @@ namespace NeonBrawl
             c.Note("KEYBOARD AND MOUSE",
                 "WASD  move     MOUSE  aim     LEFT CLICK  fire     RIGHT CLICK / G  grenade\n" +
                 "SPACE  dash     R  reload     Q  swap gun     F  knife     E  pick up\n" +
-                "TAB  scores     T / ENTER  chat     1-8  emotes     V  talk     X  auto shoot     ESC  menu");
+                "TAB  scores     T / ENTER  chat     1-8  emotes     V  talk     X  auto shoot     C  power     ESC  menu");
 
             // PRIVACY
             var pr = new Rows(_pages[3]);
@@ -155,6 +156,9 @@ namespace NeonBrawl
                     else ctx.UI.Toast("No extra ad choices are needed where you live.");
                 });
             pr.Action("PRIVACY POLICY", "What the game collects and why", "READ", () => Application.OpenURL(AdIds.PrivacyPolicyUrl));
+
+            // ABOUT: who made the game
+            AboutPage.Build(_pages[4], ctx);
 
             var close = UIKit.ArtButton(panel.transform, "Close", "DONE", ArtIds.PanelGold, new Vector2(340f, 104f), 46, () => ctx.UI.ShowSettings(false));
             UIKit.Place((RectTransform)close.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 34f), new Vector2(340f, 104f));
@@ -183,17 +187,20 @@ namespace NeonBrawl
         {
             private readonly RectTransform _page;
             private float _y = -12f;
+            /// <summary>Row height; a little shorter on pages with many rows.</summary>
+            public float Height = 116f;
 
             public Rows(RectTransform page) { _page = page; }
 
-            private RectTransform Row(string title, string hint, float height = 116f)
+            private RectTransform Row(string title, string hint, float height = 0f)
             {
+                if (height <= 0f) height = Height;
                 var bg = UIKit.Image(_page, title, UIKit.Art.RoundRect, new Color(1f, 1f, 1f, 0.05f), true);
                 UIKit.Place(bg.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, _y), new Vector2(1040f, height - 14f));
                 var t = UIKit.Label(bg.transform, "Title", title, 34, UIKit.Cream, TextAnchor.MiddleLeft);
                 UIKit.Place(t.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, -10f), new Vector2(480f, 48f));
                 var h = UIKit.Label(bg.transform, "Hint", hint, 22, new Color(0.62f, 0.68f, 0.8f), TextAnchor.UpperLeft, false);
-                UIKit.Place(h.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, -58f), new Vector2(560f, 40f));
+                UIKit.Place(h.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, height < 110f ? -52f : -58f), new Vector2(560f, height < 110f ? 32f : 40f));
                 _y -= height;
                 return bg.rectTransform;
             }

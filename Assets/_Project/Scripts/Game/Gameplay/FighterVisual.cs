@@ -246,6 +246,19 @@ namespace NeonBrawl
 
         public void SetVisible(bool visible) => _targetAlpha = visible ? 1f : 0f;
 
+        /// <summary>Extra fade on top of line of sight (a cloaked fighter seen by its own side).</summary>
+        public float AlphaScale = 1f;
+        private Color _tint = Color.white;
+        private bool _tintDirty;
+
+        /// <summary>Color wash over the soldier (frozen blue, rage red); white = none.</summary>
+        public void SetTint(Color t)
+        {
+            if (t == _tint) return;
+            _tint = t;
+            _tintDirty = true;
+        }
+
         public void SetBarVisible(bool visible) => _barVisible = visible;
 
         public void SetDead(bool dead)
@@ -315,7 +328,7 @@ namespace NeonBrawl
                 for (int i = 0; i < _flash.Length; i++) _flash[i].enabled = false;
             }
 
-            float target = _targetAlpha;
+            float target = _targetAlpha * AlphaScale;
             if (_dead)
             {
                 _deadTime += dt;
@@ -323,7 +336,7 @@ namespace NeonBrawl
             }
             _alpha = Mathf.MoveTowards(_alpha, target, dt * 7f);
             float blink = protectedBlink && Mathf.Sin(Time.time * 30f) > 0f ? 0.45f : 1f;
-            if (!Mathf.Approximately(_alpha * blink, _appliedAlpha)) ApplyColors(blink);
+            if (_tintDirty || !Mathf.Approximately(_alpha * blink, _appliedAlpha)) ApplyColors(blink);
 
             _shownHp = Mathf.MoveTowards(_shownHp, hp01, dt * 3f);
             if (hp01 < _ghostHp - 0.001f)
@@ -367,10 +380,12 @@ namespace NeonBrawl
         {
             float a = _alpha * blink;
             _appliedAlpha = a;
+            _tintDirty = false;
             for (int i = 0; i < _parts.Length; i++)
             {
                 Color c = _partColors[i];
                 if (_dead) c = new Color(c.r * 0.42f, c.g * 0.42f, c.b * 0.42f, c.a);
+                else c = new Color(c.r * _tint.r, c.g * _tint.g, c.b * _tint.b, c.a);
                 c.a *= a;
                 _parts[i].color = c;
             }

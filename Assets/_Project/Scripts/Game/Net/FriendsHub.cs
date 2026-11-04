@@ -98,7 +98,9 @@ namespace NeonBrawl
         private readonly Queue<Action> _main = new Queue<Action>();
         private readonly List<string> _pendingInvites = new List<string>();
         private bool _subscribed, _presenceDirty, _paused;
-        private float _presenceAt, _retryAt = -1f, _refreshAt, _pendingSince;
+        private float _presenceAt, _retryAt = -1f, _refreshAt, _pendingSince, _heartbeatAt;
+        /// <summary>Re-sends "online" this often: the server drops you to offline when the phone loses its live link.</summary>
+        private const float Heartbeat = 45f;
         private string _lastPresence = "";
 
         public void Init(GameContext ctx)
@@ -135,6 +137,9 @@ namespace NeonBrawl
                     f.RelationshipDeleted += e => Post(Rebuild);
                     f.PresenceUpdated += e => Post(Rebuild);
                     f.MessageReceived += e => Post(() => OnMessage(e));
+                    // the live connection came back (phone woke up, network changed): the server may have
+                    // marked us offline meanwhile, so say we are online again and fetch fresh statuses
+                    f.NotificationsConnectivityChanged += e => Post(() => OnConnectivity(e.State));
                 }
                 State = Phase.Ready;
                 _presenceDirty = true;
@@ -328,6 +333,8 @@ namespace NeonBrawl
             int online = 0;
             for (int i = 0; i < Friends.Count; i++) if (Friends[i].Online) online++;
             OnlineCount = online;
+            if (CommandLine.Has("-nbfriendslog"))
+                for (int i = 0; i < Friends.Count; i++) Debug.Log("[Friends] " + Friends[i].Name + " is " + Friends[i].StatusText);
             Raise();
         }
 
@@ -399,11 +406,12 @@ namespace NeonBrawl
             }
             else if (_pendingInvites.Count > 0 && now - _pendingSince > 40f) _pendingInvites.Clear(); // the room never opened
 
+            if (now >= _heartbeatAt) ForcePresence();
             if (_presenceDirty && now - _presenceAt > 1f) PushPresence();
             // statuses arrive as events; a slow full refresh catches anything missed
             if (now >= _refreshAt)
             {
-                _refreshAt = now + 60f;
+                _refreshAt = now + 30f;
                 _ = RefreshQuietly();
             }
         }
@@ -431,15 +439,47 @@ namespace NeonBrawl
             string key = availability + "|" + act.State + "|" + act.Room + "|" + act.Players;
             if (key == _lastPresence) return;
             _lastPresence = key;
+            _heartbeatAt = Time.unscaledTime + Heartbeat;
             try { await FriendsService.Instance.SetPresenceAsync(availability, act); }
-            catch (Exception e) { Debug.LogWarning("[Friends] presence: " + e.Message); _lastPresence = ""; }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Friends] presence: " + e.Message);
+                _lastPresence = "";
+                _heartbeatAt = Time.unscaledTime + 5f; // try again soon
+            }
+        }
+
+        /// <summary>Sends your status even if it did not change (the server may have timed it out).</summary>
+        private void ForcePresence()
+        {
+            _lastPresence = "";
+            _presenceDirty = true;
+            _presenceAt = 0f;
+            _heartbeatAt = Time.unscaledTime + Heartbeat;
+        }
+
+        private void OnConnectivity(FriendsEventConnectionState state)
+        {
+            Debug.Log("[Friends] live link: " + state);
+            if (State != Phase.Ready || state != FriendsEventConnectionState.Subscribed) return;
+            ForcePresence();
+            _refreshAt = 0f;
         }
 
         private void OnApplicationPause(bool paused)
         {
             _paused = paused;
             _presenceDirty = true;
-            if (!paused && State == Phase.Ready) _refreshAt = 0f;
+            if (paused || State != Phase.Ready) return;
+            // back from the background: the phone lost its live link while away, so the server shows
+            // us offline; say we are online again at once and refresh everyone else
+            ForcePresence();
+            _refreshAt = 0f;
+        }
+
+        private void OnApplicationFocus(bool focus)
+        {
+            if (focus && State == Phase.Ready && Time.unscaledTime - _presenceAt > 20f) ForcePresence();
         }
 
         private void OnApplicationQuit()

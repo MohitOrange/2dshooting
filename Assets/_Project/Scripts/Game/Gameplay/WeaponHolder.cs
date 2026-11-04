@@ -107,6 +107,9 @@ namespace NeonBrawl
         {
             var cur = Current;
             if (_reload > 0f || _cooldown > 0f) return;
+            // ENDLESS AMMO: the magazine never runs dry
+            bool endless = _f.Powers != null && _f.Powers.InfiniteAmmo;
+            if (endless && cur.Mag <= 0) cur.Mag = cur.Stats.MagSize;
             if (cur.Mag <= 0)
             {
                 if (cur.CanReload) StartReload();
@@ -124,7 +127,7 @@ namespace NeonBrawl
                 return;
             }
             Fire(cur.Stats, false);
-            cur.Mag--;
+            if (!endless) cur.Mag--;
             _cooldown = cur.Stats.Interval;
             Changed();
             if (cur.Mag <= 0 && cur.CanReload) StartReload();
@@ -170,6 +173,8 @@ namespace NeonBrawl
         private void Fire(WeaponStats s, bool replay)
         {
             Vector2 dir = _f.AimDir;
+            _f.LastShotTime = Time.time;
+            _f.Powers?.Reveal(0.6f);
             Vector2 muzzle = MuzzlePoint(s);
             _f.CancelSpawnProtection();
             _f.Visual.Recoil(s.Recoil);
@@ -216,10 +221,19 @@ namespace NeonBrawl
             return hit.collider != null ? hit.point - dir * 0.03f : c + dir * reach;
         }
 
+        /// <summary>ENDLESS AMMO starts: any reload ends and the gun is full.</summary>
+        public void FillMagazine()
+        {
+            _reload = 0f;
+            var cur = Current;
+            if (cur != null) cur.Mag = cur.Stats.MagSize;
+            Changed();
+        }
+
         private void StartReload()
         {
             var cur = Current;
-            if (_reload > 0f || !cur.CanReload) return;
+            if (_reload > 0f || !cur.CanReload || (_f.Powers != null && _f.Powers.InfiniteAmmo)) return;
             _reloadTotal = _reload = cur.Stats.ReloadTime;
             _ctx.Sfx.Play(SfxId.Reload, _f.Position, 0.7f);
             Changed();

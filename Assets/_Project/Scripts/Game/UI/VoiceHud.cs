@@ -15,10 +15,12 @@ namespace NeonBrawl
         private GameObject _controls;
         private Image _micSlash, _spkSlash, _micGlow;
         private Text _channel;
+        private GameObject _blocked;
         private Button _channelBtn;
         private readonly GameObject[] _talk = new GameObject[TalkLines];
         private readonly Text[] _talkText = new Text[TalkLines];
         private bool _shown;
+        private float _level;
 
         public static VoiceHud Build(RectTransform safe, GameContext ctx)
         {
@@ -29,7 +31,9 @@ namespace NeonBrawl
             v._controls = UIKit.Rect(root, "Controls").gameObject;
             UIKit.Stretch((RectTransform)v._controls.transform);
             var ct = v._controls.transform;
-            v._micSlash = RoundButton(ct, "Mic", HudArt.Get(HudArt.Icon.Mic), -356f, () => ctx.Voice.SetMic(!ctx.Voice.MicOn), out v._micGlow);
+            v._micSlash = RoundButton(ct, "Mic", HudArt.Get(HudArt.Icon.Mic), -356f, () => ctx.Voice.SetMic(!ctx.Voice.Transmitting), out v._micGlow);
+            v._blocked = UIKit.Badge(v._micSlash.transform.parent, "!", UIKit.Red, new Vector2(-10f, -10f), Vector2.one, 30).transform.parent.gameObject;
+            v._blocked.SetActive(false);
             v._spkSlash = RoundButton(ct, "Speaker", HudArt.Get(HudArt.Icon.Speaker), -468f, () => ctx.Voice.SetSpeaker(!ctx.Voice.SpeakerOn), out _);
             v._channelBtn = UIKit.ArtButton(ct, "Channel", "ALL", ArtIds.PanelBlue, new Vector2(150f, 92f), 34, () =>
                 ctx.Voice.SetTalkTo(ctx.Voice.TalkTo == VoiceService.Target.All ? VoiceService.Target.Team : VoiceService.Target.All));
@@ -39,7 +43,7 @@ namespace NeonBrawl
             for (int i = 0; i < TalkLines; i++)
             {
                 var bg = UIKit.Image(root, "Talking" + i, UIKit.Art.RoundRect, new Color(0f, 0f, 0f, 0.5f), true);
-                UIKit.Place(bg.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -396f - i * 46f), new Vector2(260f, 40f));
+                UIKit.Place(bg.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -420f - i * 46f), new Vector2(260f, 40f));
                 var ic = UIKit.Icon(bg.transform, "Mic", HudArt.Get(HudArt.Icon.Mic), new Vector2(34f, 34f), new Color(0.45f, 1f, 0.5f));
                 UIKit.Place(ic.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(24f, 0f), new Vector2(34f, 34f));
                 var t = UIKit.Label(bg.transform, "Name", "", 24, new Color(0.75f, 1f, 0.75f), TextAnchor.MiddleLeft);
@@ -98,6 +102,7 @@ namespace NeonBrawl
             bool shown = _shown && _ctx.Prefs.VoiceChat;
             if (_controls.activeSelf != shown) _controls.SetActive(shown);
             _micSlash.gameObject.SetActive(!v.Transmitting);
+            if (_blocked.activeSelf != v.MicBlocked) _blocked.SetActive(v.MicBlocked);
             _spkSlash.gameObject.SetActive(!v.SpeakerOn);
             _channel.text = v.TalkTo == VoiceService.Target.Team ? "TEAM" : "ALL";
             _channelBtn.interactable = v.HasTeamChannel || v.TalkTo == VoiceService.Target.Team;
@@ -112,10 +117,15 @@ namespace NeonBrawl
         private void Update()
         {
             if (!_shown || _ctx.Voice == null) return;
-            // breathing green glow while your mic is live
-            float a = _ctx.Voice.Transmitting ? 0.45f + Mathf.Sin(Time.unscaledTime * 6f) * 0.2f : 0f;
+            // green glow while your mic is live; it swells with your voice so you can see the mic hears you
+            var voice = _ctx.Voice;
+            float level = voice.SelfLevel;
+            _level = Mathf.Max(level, _level - Time.unscaledDeltaTime * 2.5f);
+            float a = voice.Transmitting ? 0.3f + Mathf.Sin(Time.unscaledTime * 6f) * 0.08f + _level * 0.6f : 0f;
             var c = _micGlow.color;
             if (!Mathf.Approximately(c.a, a)) { c.a = a; _micGlow.color = c; }
+            float k = 1f + _level * 0.45f;
+            _micGlow.rectTransform.localScale = new Vector3(k, k, 1f);
         }
     }
 }

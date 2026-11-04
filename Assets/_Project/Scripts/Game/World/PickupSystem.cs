@@ -136,10 +136,14 @@ namespace NeonBrawl
                 var fighter = fighters[f];
                 fighter.NearbyWeaponPickup = null;
                 if (!fighter.Alive || fighter.IsPuppet) continue; // remote players ask for theirs
+                float mr = fighter.Powers.MagnetRadius, m2 = mr * mr;
                 for (int i = 0; i < _items.Count; i++)
                 {
                     var p = _items[i];
-                    if (!p.Active || (p.Position - fighter.Position).sqrMagnitude > r2) continue;
+                    if (!p.Active) continue;
+                    float d2 = (p.Position - fighter.Position).sqrMagnitude;
+                    // LOOT MAGNET pulls health, armor, ammo and grenades from further away (guns still need you there)
+                    if (d2 > r2 && (d2 > m2 || p.Type == PickupType.Weapon)) continue;
                     if (TryCollect(fighter, p)) break;
                 }
             }
@@ -170,10 +174,13 @@ namespace NeonBrawl
             if (me == null) return;
             me.NearbyWeaponPickup = null;
             if (!me.Alive) return;
+            float mr = me.Powers.MagnetRadius, m2 = mr * mr;
             for (int i = 0; i < _items.Count; i++)
             {
                 var p = _items[i];
-                if (!p.Active || (p.Position - me.Position).sqrMagnitude > r2) continue;
+                if (!p.Active) continue;
+                float d2 = (p.Position - me.Position).sqrMagnitude;
+                if (d2 > r2 && (d2 > m2 || p.Type == PickupType.Weapon)) continue;
                 if (!WouldCollect(me, p)) continue;
                 if (Time.unscaledTime >= p.RequestT)
                 {
@@ -210,7 +217,7 @@ namespace NeonBrawl
         {
             var p = Find(id);
             if (p == null || !p.Active || f == null || !f.Alive) return;
-            float r = _ctx.Config.Player.PickupRadius + 1.2f;
+            float r = Mathf.Max(_ctx.Config.Player.PickupRadius, p.Type == PickupType.Weapon ? 0f : f.Powers.MagnetRadius) + 1.2f;
             if ((p.Position - f.NetLatestPos).sqrMagnitude > r * r) return;
             var t = _ctx.Config.Player;
             switch (p.Type)
@@ -365,6 +372,7 @@ namespace NeonBrawl
         {
             if (Authority) Taken?.Invoke(p, f);
             _ctx.Fx.PickupSparkle(p.Position, TypeColor(p.Type));
+            if (f != null && f.Powers.MagnetRadius > 0f && (p.Position - f.Position).sqrMagnitude > 2f) MagnetPull(p, f);
             bool local = f != null && f.IsLocal;
             _ctx.Sfx.Play(SfxId.Pickup, p.Position, local ? 1f : 0.5f);
             if (local && toast != null)
@@ -382,6 +390,18 @@ namespace NeonBrawl
                 SetActive(p, false);
                 p.Timer = _ctx.Config.Player.PickupRespawn;
             }
+        }
+
+        /// <summary>LOOT MAGNET: the item streaks across the floor into the player.</summary>
+        private void MagnetPull(Pickup p, Fighter f)
+        {
+            var art = _ctx.Art;
+            Color c = Powers.Get(PowerId.Magnet).Color;
+            Vector2 to = f.Position - p.Position;
+            float ang = Mathf.Atan2(to.y, to.x) * Mathf.Rad2Deg;
+            for (int k = 0; k < 5; k++)
+                _ctx.Fx.Spawn(art.Glow, art.Additive, p.Position + to * (k * 0.12f), 0f, to * 3.2f, 0.28f, 0.55f - k * 0.06f, 0.15f, TypeColor(p.Type), new Color(c.r, c.g, c.b, 0f), SortOrder.FxTop, 1f);
+            _ctx.Fx.Spawn(art.Spark, art.Additive, p.Position + to * 0.5f, ang, Vector2.zero, 0.25f, 1f, 0.3f, Color.white, new Color(c.r, c.g, c.b, 0f), SortOrder.FxTop, 0f, 0f, new Vector2(to.magnitude * 0.9f, 0.35f));
         }
 
         private static void SetActive(Pickup p, bool active)

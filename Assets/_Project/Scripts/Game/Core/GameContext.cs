@@ -86,6 +86,10 @@ namespace NeonBrawl
         public float VoiceVolume = 0.8f;
         /// <summary>Your mic talks to your team only (team battles).</summary>
         public bool VoiceTeam;
+        /// <summary>Your mic is open in online matches (remembered; on by default).</summary>
+        public bool VoiceMic = true;
+        /// <summary>Minimap in matches.</summary>
+        public bool Minimap = true;
         /// <summary>Fire by itself at enemies you can see (on by default).</summary>
         public bool AutoShoot = true;
         /// <summary>Where the touch sticks and buttons sit, how big and how see-through they are.</summary>
@@ -108,6 +112,8 @@ namespace NeonBrawl
                 VoiceChat = PlayerPrefs.GetInt("nb.voice", 1) == 1,
                 VoiceVolume = PlayerPrefs.GetFloat("nb.voicevol", 0.8f),
                 VoiceTeam = PlayerPrefs.GetInt("nb.voiceteam", 0) == 1,
+                VoiceMic = PlayerPrefs.GetInt("nb.voicemic", 1) == 1,
+                Minimap = PlayerPrefs.GetInt("nb.minimap", 1) == 1,
                 AutoShoot = PlayerPrefs.GetInt("nb.autoshoot", 1) == 1,
                 Layout = ControlLayout.Load(),
             };
@@ -137,6 +143,8 @@ namespace NeonBrawl
             PlayerPrefs.SetInt("nb.voice", VoiceChat ? 1 : 0);
             PlayerPrefs.SetFloat("nb.voicevol", VoiceVolume);
             PlayerPrefs.SetInt("nb.voiceteam", VoiceTeam ? 1 : 0);
+            PlayerPrefs.SetInt("nb.voicemic", VoiceMic ? 1 : 0);
+            PlayerPrefs.SetInt("nb.minimap", Minimap ? 1 : 0);
             PlayerPrefs.SetInt("nb.autoshoot", AutoShoot ? 1 : 0);
             Layout.Save();
             var s = LastSettings;

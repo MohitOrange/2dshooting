@@ -41,6 +41,9 @@ namespace NeonBrawl
         private int _autoShown = -1;
         private MatchChatPanel _chat;
         private VoiceHud _voice;
+        private Minimap _minimap;
+        private PowerHud _powerHud;
+        private bool _lastEndless;
         private readonly List<PlayerRecord> _standings = new List<PlayerRecord>(12);
 
         private float _shownHp = 1f, _ghostHp = 1f, _ghostDelay;
@@ -155,7 +158,7 @@ namespace NeonBrawl
             UIKit.Place(_prompt.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 160f), new Vector2(900f, 44f));
 
             _fps = UIKit.Label(safe, "Fps", "", 22, new Color(0.7f, 1f, 0.7f), TextAnchor.UpperLeft);
-            UIKit.Place(_fps.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(26f, -142f), new Vector2(200f, 30f));
+            UIKit.Place(_fps.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(560f, -18f), new Vector2(200f, 30f));
 
             // scoreboard
             var board = UIKit.Panel9(safe, "Scoreboard", ArtIds.PanelDark, Color.white, 2.8f);
@@ -173,6 +176,9 @@ namespace NeonBrawl
             TouchControls.TopButtons(safe, ctx.Input, art, cat);
             _chat = MatchChatPanel.Build(safe, ctx);
             _voice = VoiceHud.Build(safe, ctx);
+            _minimap = Minimap.Build(safe, ctx);
+            _minimap.transform.SetSiblingIndex(0);
+            _powerHud = PowerHud.Build(root, safe, ctx, _touch);
 
             ctx.Events.Killed += OnKilled;
             ctx.Events.Announced += OnAnnounce;
@@ -244,9 +250,17 @@ namespace NeonBrawl
             _feedback.Bind(match);
             _chat.Bind();
             _voice.Bind(match);
+            _minimap.Bind(match);
+            _powerHud.Bind(match);
         }
 
         public void SetTouch(bool touch) => _touch.gameObject.SetActive(touch);
+
+        /// <summary>Settings: minimap switched on or off.</summary>
+        public void RefreshMinimap()
+        {
+            if (_match != null) _minimap.Bind(_match);
+        }
 
         /// <summary>Puts the sticks and buttons where the player's saved layout says.</summary>
         public void ApplyLayout() => _touch.ApplyLayout(_ctx.Prefs.Layout);
@@ -400,15 +414,17 @@ namespace NeonBrawl
                 if (hpInt != _lastHp) { _lastHp = hpInt; _hpText.text = hpInt.ToString(); }
 
                 var w = local.Weapons;
-                if (w.Version != _lastAmmoVersion)
+                bool endless = local.Powers.InfiniteAmmo;
+                if (w.Version != _lastAmmoVersion || endless != _lastEndless)
                 {
                     _lastAmmoVersion = w.Version;
+                    _lastEndless = endless;
                     var cur = w.Current;
                     _weaponName.text = cur.Stats.DisplayName;
-                    _ammo.text = cur.Mag.ToString();
-                    _reserve.text = "/ " + (cur.Stats.InfiniteReserve ? "∞" : cur.Reserve.ToString());
-                    _lowAmmo = cur.Stats.MagSize > 3 && cur.Mag <= Mathf.Max(1, cur.Stats.MagSize / 4);
-                    _ammo.color = cur.Mag == 0 ? UIKit.Red : _lowAmmo ? UIKit.Orange : Color.white;
+                    _ammo.text = endless ? "∞" : cur.Mag.ToString();
+                    _reserve.text = "/ " + (cur.Stats.InfiniteReserve || endless ? "∞" : cur.Reserve.ToString());
+                    _lowAmmo = !endless && cur.Stats.MagSize > 3 && cur.Mag <= Mathf.Max(1, cur.Stats.MagSize / 4);
+                    _ammo.color = endless ? UIKit.Gold : cur.Mag == 0 ? UIKit.Red : _lowAmmo ? UIKit.Orange : Color.white;
                     if (!_lowAmmo) _ammoRt.localScale = Vector3.one;
                     var gun = WeaponArt.Get(_ctx.Catalog, cur.Stats.Id);
                     _gunIcon.enabled = gun.Valid;

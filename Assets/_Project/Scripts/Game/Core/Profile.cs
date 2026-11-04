@@ -106,6 +106,8 @@ namespace NeonBrawl
         public List<bool> MissionClaimed = new List<bool>();
         public bool MissionBonus;
         public List<string> Orders = new List<string>(); // store transaction IDs already granted
+        /// <summary>Power-up levels by PowerId (1 = not upgraded yet).</summary>
+        public List<int> PowerLevels = new List<int>();
     }
 
     /// <summary>The local player's wallet, wardrobe and progress.</summary>
@@ -140,6 +142,7 @@ namespace NeonBrawl
             catch { p.Data = null; }
             if (p.Data == null) p.Data = new ProfileData();
             if (p.Data.Owned == null) p.Data.Owned = new List<string>();
+            if (p.Data.PowerLevels == null) p.Data.PowerLevels = new List<int>();
             return p;
         }
 
@@ -193,6 +196,27 @@ namespace NeonBrawl
         }
 
         public void AddCoins(int n) { Data.Coins = Mathf.Max(0, Data.Coins + n); Save(); }
+
+        /// <summary>Level of a power-up (1..6) from the upgrade screen.</summary>
+        public int PowerLevel(PowerId id)
+        {
+            var l = Data.PowerLevels;
+            int i = (int)id;
+            return i < l.Count ? Mathf.Clamp(l[i], 1, Powers.MaxLevel) : 1;
+        }
+
+        /// <summary>Pays the coins and raises the power one level; false if it is maxed or too expensive.</summary>
+        public bool TryUpgradePower(PowerId id)
+        {
+            int lv = PowerLevel(id);
+            int cost = Powers.UpgradeCost(lv);
+            if (cost <= 0 || Data.Coins < cost) return false;
+            Data.Coins -= cost;
+            while (Data.PowerLevels.Count < Powers.Count) Data.PowerLevels.Add(1);
+            Data.PowerLevels[(int)id] = lv + 1;
+            Save();
+            return true;
+        }
         public void AddGems(int n) { Data.Gems = Mathf.Max(0, Data.Gems + n); Save(); }
 
         public static int XpToNext(int level) => 100 + (level - 1) * 60;

@@ -56,6 +56,9 @@ namespace NeonBrawl
                 m.Pickups.Taken += OnPickupTaken;
                 m.Pickups.Dropped += OnPickupDropped;
                 m.Pickups.Respawned += OnPickupRespawned;
+                m.PowerUps.Spawned += OnOrbSpawned;
+                m.PowerUps.Taken += OnOrbTaken;
+                m.PowerUps.Froze += OnFroze;
             }
             else
             {
@@ -63,6 +66,7 @@ namespace NeonBrawl
                 var w = NetIO.Writer(Msg.Loaded, 8);
                 using (w) _net.SendToHost(ref w, NetworkDelivery.ReliableSequenced);
             }
+            m.PowerUps.Used += OnPowerUsed;
             _net.Match = this; // plays any messages that arrived while loading
         }
 
@@ -116,6 +120,14 @@ namespace NeonBrawl
                     case Msg.PropHit: HostOnPropHit(sender, ref r); break;
                     case Msg.TakePickup: HostOnTakePickup(sender, ref r); break;
                     case Msg.Loaded: HostOnLoaded(sender); break;
+                    case Msg.TakeOrb:
+                    {
+                        r.ReadValueSafe(out ushort oid);
+                        var f = _m.FighterOwnedBy(sender);
+                        if (f != null && _m.CurrentPhase == MatchController.Phase.Playing) _m.PowerUps.HostGrant(f, oid);
+                        break;
+                    }
+                    case Msg.PowerUse: HostOnPowerUse(sender, ref r); break;
                 }
                 return;
             }
@@ -141,6 +153,40 @@ namespace NeonBrawl
                     break;
                 }
                 case Msg.End: _m.NetEnd(); break;
+                case Msg.OrbSpawn:
+                {
+                    r.ReadValueSafe(out ushort oid);
+                    r.ReadValueSafe(out byte otype);
+                    r.ReadValueSafe(out Vector2 pos);
+                    r.ReadValueSafe(out float life);
+                    _m.PowerUps.NetSpawn(oid, (PowerId)otype, pos, life);
+                    break;
+                }
+                case Msg.OrbTaken:
+                {
+                    r.ReadValueSafe(out ushort oid);
+                    r.ReadValueSafe(out byte fid);
+                    r.ReadValueSafe(out byte ttype);
+                    _m.PowerUps.NetTaken(oid, fid == 255 ? null : _m.FighterById(fid), (PowerId)ttype);
+                    break;
+                }
+                case Msg.PowerUse:
+                {
+                    ReadPower(ref r, out var pf, out var pid, out int plv);
+                    if (pf != null && pf != _m.Local) _m.PowerUps.NetUse(pf, pid, plv);
+                    break;
+                }
+                case Msg.Frozen:
+                {
+                    r.ReadValueSafe(out float secs);
+                    r.ReadValueSafe(out byte n);
+                    for (int i = 0; i < n; i++)
+                    {
+                        r.ReadValueSafe(out byte fid);
+                        _m.FighterById(fid)?.Powers.Freeze(secs);
+                    }
+                    break;
+                }
                 case Msg.Joined:
                 {
                     var spec = NetIO.ReadSpec(ref r);
@@ -354,9 +400,10 @@ namespace NeonBrawl
             if (v != a && (PosOf(v) - PosOf(a)).sqrMagnitude > reach * reach) return;
             // no more damage per second than any weapon can deal
             if (!_budget.TryGetValue(a.Id, out float left)) left = DamageBurst;
-            float dmg = DamageModel.Cap(damage, _ctx.Config.Get(weapon).MaxHitDamage);
-            if (dmg > left) return;
-            _budget[a.Id] = left - dmg;
+            float rage = a.Powers.DamageMult; // RAGE hits twice as hard
+            float dmg = DamageModel.Cap(damage, _ctx.Config.Get(weapon).MaxHitDamage * rage);
+            if (dmg / rage > left) return;
+            _budget[a.Id] = left - dmg / rage;
             _m.ApplyHit(a, v, dmg, dir.sqrMagnitude > 1.01f ? dir.normalized : dir, Mathf.Min(knock, 30f), weapon, point);
         }
 
@@ -422,9 +469,107 @@ namespace NeonBrawl
         private void HostOnLoaded(ulong sender)
         {
             _loaded.Add(sender);
+            // power orbs already on the map
+            _m.PowerUps.ForEachOrb(o =>
+            {
+                var w = WriteOrb(o);
+                using (w) _net.SendTo(sender, ref w, NetworkDelivery.ReliableSequenced);
+            });
             var f = _m.FighterOwnedBy(sender);
             // someone who joined a running match appears once their map is built
             if (f != null && !f.Alive && f.DeathTime <= 0f) _m.HostSpawnNow(f);
+        }
+
+        // ================================================================== power-ups
+
+        public void RequestOrb(int id)
+        {
+            var w = NetIO.Writer(Msg.TakeOrb, 8);
+            using (w)
+            {
+                w.WriteValueSafe((ushort)id);
+                _net.SendToHost(ref w, NetworkDelivery.ReliableSequenced);
+            }
+        }
+
+        private static FastBufferWriter WriteOrb(PowerOrb o)
+        {
+            var w = NetIO.Writer(Msg.OrbSpawn, 24);
+            w.WriteValueSafe((ushort)o.Id);
+            w.WriteValueSafe((byte)o.Type);
+            w.WriteValueSafe(o.Pos);
+            w.WriteValueSafe(o.Life);
+            return w;
+        }
+
+        private void OnOrbSpawned(PowerOrb o)
+        {
+            var w = WriteOrb(o);
+            using (w) _net.SendToClients(ref w, NetworkDelivery.ReliableSequenced);
+        }
+
+        private void OnOrbTaken(PowerOrb o, Fighter f)
+        {
+            var w = NetIO.Writer(Msg.OrbTaken, 8);
+            using (w)
+            {
+                w.WriteValueSafe((ushort)o.Id);
+                w.WriteValueSafe((byte)(f != null ? f.Id : 255));
+                w.WriteValueSafe((byte)o.Type);
+                _net.SendToClients(ref w, NetworkDelivery.ReliableSequenced);
+            }
+        }
+
+        private void OnFroze(List<Fighter> who, float secs)
+        {
+            var w = NetIO.Writer(Msg.Frozen, 8 + who.Count);
+            using (w)
+            {
+                w.WriteValueSafe(secs);
+                w.WriteValueSafe((byte)who.Count);
+                for (int i = 0; i < who.Count; i++) w.WriteValueSafe((byte)who[i].Id);
+                _net.SendToClients(ref w, NetworkDelivery.ReliableSequenced);
+            }
+        }
+
+        /// <summary>A fighter this device controls used a power: the host tells everyone, a client tells the host.</summary>
+        private void OnPowerUsed(Fighter f, PowerId id, int level)
+        {
+            if (f.IsPuppet || (!IsHost && f != _m.Local)) return;
+            var w = WritePower(f, id, level);
+            using (w)
+            {
+                if (IsHost) _net.SendToClients(ref w, NetworkDelivery.ReliableSequenced);
+                else _net.SendToHost(ref w, NetworkDelivery.ReliableSequenced);
+            }
+        }
+
+        private void HostOnPowerUse(ulong sender, ref FastBufferReader r)
+        {
+            ReadPower(ref r, out var f, out var id, out int level);
+            if (f == null || !f.IsPuppet || f.Owner != sender || id >= PowerId.Count) return;
+            _m.PowerUps.NetUse(f, id, level);
+            var w = WritePower(f, id, level);
+            using (w) _net.SendToClients(ref w, NetworkDelivery.ReliableSequenced, sender);
+        }
+
+        private static FastBufferWriter WritePower(Fighter f, PowerId id, int level)
+        {
+            var w = NetIO.Writer(Msg.PowerUse, 16);
+            w.WriteValueSafe((byte)f.Id);
+            w.WriteValueSafe((byte)id);
+            w.WriteValueSafe((byte)level);
+            return w;
+        }
+
+        private void ReadPower(ref FastBufferReader r, out Fighter f, out PowerId id, out int level)
+        {
+            r.ReadValueSafe(out byte fid);
+            r.ReadValueSafe(out byte pid);
+            r.ReadValueSafe(out byte lv);
+            f = _m.FighterById(fid);
+            id = (PowerId)pid;
+            level = Mathf.Clamp(lv, 1, Powers.MaxLevel);
         }
 
         // ================================================================== host events

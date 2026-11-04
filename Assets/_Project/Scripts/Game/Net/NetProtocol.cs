@@ -19,10 +19,12 @@ namespace NeonBrawl
         PropHit = 4,     // "my shot hit crate/barrel N"
         TakePickup = 5,  // "I am standing on pickup N"
         Loaded = 6,      // match scene built, ready for the countdown
+        TakeOrb = 7,     // "I am standing on power orb N"
 
         // both ways (client -> host, host relays to the others)
         Shot = 10,       // fire / knife / grenade visuals
         Chat = 11,       // typed text, quick phrase or emote (room and match)
+        PowerUse = 12,   // a fighter used a power (owner -> host -> everyone else)
 
         // host -> clients
         Room = 20,
@@ -39,6 +41,9 @@ namespace NeonBrawl
         Joined = 31,     // a fighter joined a running match
         Left = 32,       // a fighter left the match
         Closing = 33,    // the host is closing the room
+        OrbSpawn = 34,   // a power orb appeared
+        OrbTaken = 35,   // a power orb was taken (or faded)
+        Frozen = 36,     // FROST NOVA froze these fighters
 
         // both ways
         Ping = 40,       // "still here" every 2 s, so a dead link is noticed (unreliable)

@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 
 namespace NeonBrawl
 {
-    public enum TouchAction { Dash, Reload, Swap, Grenade, Melee, Interact, Pause, AutoShoot }
+    public enum TouchAction { Dash, Reload, Swap, Grenade, Melee, Interact, Pause, AutoShoot, Power }
 
     /// <summary>
     /// Turns keyboard/mouse, gamepad and on-screen touch controls into one <see cref="FighterInput"/>.
@@ -15,7 +15,7 @@ namespace NeonBrawl
     {
         public const float TouchFireThreshold = 0.6f;
 
-        private readonly InputAction _move, _aimStick, _fire, _dash, _reload, _swap, _grenade, _melee, _interact, _scoreboard, _pause, _toggleTouch, _autoShoot;
+        private readonly InputAction _move, _aimStick, _fire, _dash, _reload, _swap, _grenade, _melee, _interact, _scoreboard, _pause, _toggleTouch, _autoShoot, _power;
         private readonly bool[] _touchPulses = new bool[Enum.GetValues(typeof(TouchAction)).Length];
 
         public VirtualJoystick TouchMove;
@@ -50,6 +50,7 @@ namespace NeonBrawl
             _pause = Button("Pause", "<Keyboard>/escape", "<Gamepad>/start");
             _toggleTouch = Button("ToggleTouch", "<Keyboard>/f2", null);
             _autoShoot = Button("AutoShoot", "<Keyboard>/x", "<Gamepad>/rightStickPress");
+            _power = Button("Power", "<Keyboard>/c", "<Gamepad>/leftShoulder");
             _swap.AddBinding("<Mouse>/middleButton");
             _grenade.AddBinding("<Mouse>/rightButton");
 
@@ -63,7 +64,7 @@ namespace NeonBrawl
             return act;
         }
 
-        private InputAction[] All() => new[] { _move, _aimStick, _fire, _dash, _reload, _swap, _grenade, _melee, _interact, _scoreboard, _pause, _toggleTouch, _autoShoot };
+        private InputAction[] All() => new[] { _move, _aimStick, _fire, _dash, _reload, _swap, _grenade, _melee, _interact, _scoreboard, _pause, _toggleTouch, _autoShoot, _power };
 
         /// <summary>A chat box has the keyboard: keys type text instead of moving or firing.</summary>
         public bool Typing;
@@ -143,6 +144,7 @@ namespace NeonBrawl
             input.Grenade = (keys && _grenade.WasPressedThisFrame()) | Consume(TouchAction.Grenade);
             input.Melee = (keys && _melee.WasPressedThisFrame()) | Consume(TouchAction.Melee);
             input.Interact = (keys && _interact.WasPressedThisFrame()) | Consume(TouchAction.Interact);
+            input.Power = (keys && _power.WasPressedThisFrame()) | Consume(TouchAction.Power);
         }
 
         public void Dispose()

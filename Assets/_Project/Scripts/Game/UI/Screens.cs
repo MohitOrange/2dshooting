@@ -95,9 +95,21 @@ namespace NeonBrawl
     }
 
     // =====================================================================================
-    /// <summary>A little window onto a map: its ground tiles with a few of its props standing on them.</summary>
+    /// <summary>
+    /// A window onto a map: the sharp high-resolution render of the real map (baked by
+    /// Neon Brawl ▸ Art ▸ Bake Map Previews), or, if it is missing, its ground tiles with a few props.
+    /// </summary>
     public static class MapThumb
     {
+        private static readonly Sprite[] Baked = new Sprite[8];
+
+        private static Sprite Preview(int index)
+        {
+            if (index < 0 || index >= Baked.Length) return null;
+            if (Baked[index] == null) Baked[index] = Resources.Load<Sprite>("MapPreviews/map_" + index);
+            return Baked[index];
+        }
+
         public static RectTransform Build(Transform parent, GameContext ctx, int mapIndex, Vector2 size)
         {
             var art = ctx.Art;
@@ -106,6 +118,22 @@ namespace NeonBrawl
             var mask = UIKit.Rect(parent, "Thumb");
             mask.sizeDelta = size;
             mask.gameObject.AddComponent<RectMask2D>();
+            var shot = Preview(mapIndex);
+            if (shot != null)
+            {
+                // fill the window (crop the longer side), keep the picture's shape
+                var img = UIKit.Image(mask, "Shot", shot, Color.white);
+                var rt = img.rectTransform;
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.pivot = new Vector2(0.5f, 0.5f);
+                var fit = img.gameObject.AddComponent<AspectRatioFitter>();
+                fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+                fit.aspectRatio = shot.rect.width / Mathf.Max(1f, shot.rect.height);
+                img.gameObject.AddComponent<KenBurns>();
+                var vshade = UIKit.GradientFill(mask, "Shade", new Color(0f, 0f, 0f, 0f), new Color(0f, 0f, 0f, 0.4f));
+                vshade.raycastTarget = false;
+                return mask;
+            }
             var theme = cat != null ? cat.Theme(def.Theme) : null;
             var look = ThemeLook.For(def.Theme);
             if (theme == null || theme.Tiles.Length < 4)
@@ -141,6 +169,22 @@ namespace NeonBrawl
             if (s == null) return;
             var img = UIKit.Icon(mask, "Prop", s, new Vector2(size, size));
             UIKit.Place(img.rectTransform, anchor, new Vector2(0.5f, 0f), Vector2.zero, new Vector2(size, size));
+        }
+    }
+
+    /// <summary>A very slow drift and zoom on a map picture so the card feels alive.</summary>
+    public sealed class KenBurns : MonoBehaviour
+    {
+        private float _t;
+
+        private void OnEnable() => _t = UnityEngine.Random.value * 20f;
+
+        private void Update()
+        {
+            _t += Time.unscaledDeltaTime;
+            float s = 1.06f + Mathf.Sin(_t * 0.12f) * 0.04f;
+            transform.localScale = new Vector3(s, s, 1f);
+            ((RectTransform)transform).anchoredPosition = new Vector2(Mathf.Sin(_t * 0.09f) * 12f, Mathf.Cos(_t * 0.11f) * 5f);
         }
     }
 
@@ -321,7 +365,7 @@ namespace NeonBrawl
         {
             var art = ctx.Art;
             var cat = ctx.Catalog;
-            string[] labels = { "LOCKER", "SHOP", "DAILY", "MISSIONS", "FRIENDS" };
+            string[] labels = { "LOCKER", "SHOP", "DAILY", "MISSIONS", "FRIENDS", "POWERS" };
             Sprite[] icons =
             {
                 cat != null ? cat.Icon(ArtIds.IconShirt) : null,
@@ -329,17 +373,19 @@ namespace NeonBrawl
                 cat != null ? cat.Reward(ArtIds.RewardChest) : null,
                 cat != null ? cat.Icon(ArtIds.IconTrophy) : null,
                 HudArt.Get(HudArt.Icon.Person),
+                PowerArt.Badge(PowerId.Turbo),
             };
             Color[] accents =
             {
                 new Color(0.42f, 0.9f, 0.45f), new Color(0.38f, 0.68f, 1f), new Color(1f, 0.78f, 0.3f), new Color(1f, 0.46f, 0.36f),
-                new Color(0.78f, 0.56f, 1f),
+                new Color(0.78f, 0.56f, 1f), new Color(1f, 0.42f, 0.72f),
             };
             Action[] actions =
             {
                 () => ctx.UI.ShowLocker(), () => ctx.UI.ShowShop(),
                 () => _daily.Open(DailyPopup.TabGift), () => _daily.Open(DailyPopup.TabMissions),
                 () => ctx.UI.ShowFriends(ctx.Friends.Incoming.Count > 0 ? FriendsPopup.TabRequests : FriendsPopup.TabFriends),
+                () => ctx.UI.ShowPowers(),
             };
             for (int i = 0; i < labels.Length; i++)
             {
@@ -367,7 +413,13 @@ namespace NeonBrawl
                 var s = rt.gameObject.AddComponent<SlideIn>();
                 s.From = new Vector2(0f, -260f);
                 s.Delay = 0.05f * i;
-                if (i >= 2)
+                if (i == 5)
+                {
+                    // the power tile cycles through all ten badges and says NEW
+                    ic.gameObject.AddComponent<PowerCycle>();
+                    UIKit.Badge(rt, "NEW", UIKit.Green, new Vector2(-14f, -12f), Vector2.one, 22);
+                }
+                else if (i >= 2)
                 {
                     var text = UIKit.Badge(rt, "!", UIKit.Red, new Vector2(-14f, -12f), Vector2.one, 30);
                     var badge = text.transform.parent.gameObject;

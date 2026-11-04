@@ -90,7 +90,14 @@ namespace NeonBrawl
             if (_viewer == null || !_enabled)
             {
                 _renderer.enabled = false;
-                for (int i = 0; i < _fighters.Count; i++) _fighters[i].SetSeen(true);
+                for (int i = 0; i < _fighters.Count; i++)
+                {
+                    var f = _fighters[i];
+                    bool enemy = _viewer != null && f != _viewer && _match.AreEnemies(_viewer, f);
+                    f.Powers.Marked = enemy && _viewer.Powers.Eagle && f.Alive;
+                    // GHOST CLOAK hides enemies even without fog
+                    f.SetSeen(!(enemy && f.Powers.Ghost));
+                }
                 return;
             }
 
@@ -118,8 +125,12 @@ namespace NeonBrawl
             {
                 var f = _fighters[i];
                 if (f == _viewer) { f.SetSeen(true); continue; }
-                bool seen = (f.Position - o).sqrMagnitude < MaxDist * MaxDist &&
-                            (!_match.AreEnemies(_viewer, f) || Combat.HasLineOfSight(o, f.Position));
+                bool enemy = _match.AreEnemies(_viewer, f);
+                bool eagle = enemy && _viewer.Powers.Eagle;
+                // EAGLE EYE sees every enemy through walls; GHOST CLOAK hides from everyone
+                bool seen = eagle || ((f.Position - o).sqrMagnitude < MaxDist * MaxDist && (!enemy || Combat.HasLineOfSight(o, f.Position)));
+                if (enemy && f.Powers.Ghost) seen = false;
+                f.Powers.Marked = eagle && f.Alive && !f.Powers.Ghost;
                 f.SetSeen(seen);
             }
         }

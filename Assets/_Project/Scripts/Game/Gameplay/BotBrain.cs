@@ -173,7 +173,7 @@ namespace NeonBrawl
             for (int i = 0; i < all.Count; i++)
             {
                 var f = all[i];
-                if (f == self || !f.Alive || !_m.AreEnemies(self, f)) continue;
+                if (f == self || !f.Alive || !_m.AreEnemies(self, f) || f.Powers.Ghost) continue;
                 float d2 = (f.Position - pos).sqrMagnitude;
                 if (d2 < bestD && Combat.HasLineOfSight(pos, f.Position))
                 {
@@ -182,7 +182,7 @@ namespace NeonBrawl
                 }
             }
 
-            bool keep = _target != null && _target.Alive &&
+            bool keep = _target != null && _target.Alive && !_target.Powers.Ghost &&
                         (_target.Position - pos).sqrMagnitude < _t.ViewRange * _t.ViewRange * 1.4f &&
                         Combat.HasLineOfSight(pos, _target.Position);
             if (!keep)
@@ -222,6 +222,12 @@ namespace NeonBrawl
             if (want == null && self.Armor < 1f && R() < 0.3f) want = pickups.FindNearest(pos, PickupType.Armor, 18f);
 
             if (want != null) { SetGoal(self, want.Position, false); return; }
+            // power orbs are worth a detour when the slot is empty
+            if (!self.Powers.HasHeld && _m.PowerUps != null)
+            {
+                var orb = _m.PowerUps.Nearest(pos, 20f);
+                if (orb != null && R() < 0.85f) { SetGoal(self, orb.Pos, false); return; }
+            }
             if (Time.time - _lastKnownTime < 4f) { SetGoal(self, _lastKnown, false); return; }
 
             bool reached = !_hasGoal || _pathIndex >= _path.Count;
@@ -243,7 +249,7 @@ namespace NeonBrawl
             for (int i = 0; i < all.Count; i++)
             {
                 var f = all[i];
-                if (f == self || !f.Alive || !_m.AreEnemies(self, f)) continue;
+                if (f == self || !f.Alive || !_m.AreEnemies(self, f) || f.Powers.Ghost) continue;
                 float d = (f.Position - self.Position).sqrMagnitude;
                 if (d < bestD) { bestD = d; best = f; }
             }

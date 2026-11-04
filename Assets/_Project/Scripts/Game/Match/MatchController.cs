@@ -74,6 +74,7 @@ namespace NeonBrawl
         public MatchSettings Settings { get; private set; }
         public MatchRules Rules { get; private set; }
         public PickupSystem Pickups { get; private set; }
+        public PowerSystem PowerUps { get; private set; }
         public MapData Map => _map.Data;
         public List<Fighter> Fighters => _fighters;
         public Fighter Local { get; private set; }
@@ -144,6 +145,7 @@ namespace NeonBrawl
             Setup(ctx, settings, MapLayouts.Get(mapIndex).Build(), false);
             _roster.AddRange(roster);
             Pickups.Authority = net.IsHost;
+            PowerUps.Authority = net.IsHost;
             for (int i = 0; i < roster.Count; i++) AddOnlineFighter(roster[i], net.LocalId, net.IsHost);
 
             if (joinState == null)
@@ -174,6 +176,9 @@ namespace NeonBrawl
             pickupRoot.SetParent(transform, false);
             Pickups = new PickupSystem(ctx, pickupRoot);
             for (int i = 0; i < map.Pickups.Count; i++) Pickups.AddSpot(map.Pickups[i]);
+            var powerRoot = new GameObject("PowerUps").transform;
+            powerRoot.SetParent(transform, false);
+            PowerUps = new PowerSystem(ctx, this, powerRoot);
             _fightersRoot = new GameObject("Fighters").transform;
             _fightersRoot.SetParent(transform, false);
         }
@@ -423,6 +428,13 @@ namespace NeonBrawl
         {
             if (victim == null || !victim.Alive || CurrentPhase == Phase.Ended) return false;
             if (attacker != null && attacker != victim && !AreEnemies(attacker, victim)) return false;
+            // RAGE doubles what the attacker deals (decided where the shot is fired)
+            if (attacker != null && attacker != victim) damage *= attacker.Powers.DamageMult;
+            if (victim.Powers.Shielded)
+            {
+                ShieldPing(victim, point, dir);
+                return false;
+            }
             if (Net != null)
             {
                 bool world = attacker == null || weapon == WeaponId.Barrel;
@@ -452,14 +464,30 @@ namespace NeonBrawl
                 _ctx.Fx.PlasmaPop(victim.Position, ShieldPop);
                 return false;
             }
-            float dmg = DamageModel.Cap(damage, _ctx.Config.Get(weapon).MaxHitDamage);
+            if (victim.Powers.Shielded)
+            {
+                ShieldPing(victim, point, dir);
+                return false;
+            }
+            float rage = attacker != null && attacker != victim ? attacker.Powers.DamageMult : 1f;
+            float dmg = DamageModel.Cap(damage, _ctx.Config.Get(weapon).MaxHitDamage * rage);
             if (dmg <= 0f) return false;
 
             float dealt = victim.ApplyDamage(dmg, dir, knockback, attacker, point);
+            if (victim.Powers.Surging) victim.KeepAlive(); // LIFE SURGE: cannot be finished off
             Net?.HostHit(attacker, victim, dealt, dir, knockback, weapon, point);
             HitFeedback(attacker, victim, dealt, dir, point);
             if (victim.Health <= 0f) HandleKill(attacker, victim, weapon, dir, knockback);
             return true;
+        }
+
+        /// <summary>IRON SHIELD: the hit bounces off with a ping.</summary>
+        private void ShieldPing(Fighter victim, Vector2 point, Vector2 dir)
+        {
+            Color c = Powers.Get(PowerId.Shield).Color;
+            Vector2 at = (point - victim.Position).sqrMagnitude < 0.01f ? victim.Position - dir.normalized * 0.7f : victim.Position + (point - victim.Position).normalized * 0.75f;
+            _ctx.Fx.PlasmaPop(at, c);
+            _ctx.Sfx.Play(SfxId.ShieldPing, at, 0.6f);
         }
 
         /// <summary>Online client: the host applied a hit.</summary>
@@ -699,6 +727,7 @@ namespace NeonBrawl
                 case Phase.Playing:
                     Elapsed += dt;
                     Pickups.Tick(_fighters, dt);
+                    PowerUps.Tick(_fighters, dt);
                     if (IsAuthority) TickRespawns();
                     TickLocalFeedback(dt);
                     if (Spectator) TickSpectator(dt);

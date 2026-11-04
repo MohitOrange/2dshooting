@@ -22,6 +22,7 @@ namespace NeonBrawl
         private OverlayView _overlay;
         private OnlineView _online;
         private ProfileView _profile;
+        private PowersView _powers;
         private ControlsEditorView _controls;
         private bool _controlsFromPause;
 
@@ -62,6 +63,7 @@ namespace NeonBrawl
             _shop = MakeScreen<ShopView>("Shop", out var s4); _shop.Build(ctx, s4);
             _online = MakeScreen<OnlineView>("Online", out var s10); _online.Build(ctx, s10);
             _profile = MakeScreen<ProfileView>("Profile", out var s11); _profile.Build(ctx, s11);
+            _powers = MakeScreen<PowersView>("Powers", out var s13); _powers.Build(ctx, s13);
             _loading = MakeScreen<LoadingView>("Loading", out var s5); _loading.Build(ctx, s5);
             _pause = MakeScreen<PauseView>("Pause", out var s6); _pause.Build(ctx, s6);
             _results = MakeScreen<ResultsView>("Results", out var s7); _results.Build(ctx, s7);
@@ -91,6 +93,7 @@ namespace NeonBrawl
             _shop.gameObject.SetActive(false);
             _online.gameObject.SetActive(false);
             _profile.gameObject.SetActive(false);
+            _powers.gameObject.SetActive(false);
             _loading.gameObject.SetActive(false);
             _hud.gameObject.SetActive(false);
             _pause.gameObject.SetActive(false);
@@ -99,7 +102,7 @@ namespace NeonBrawl
             _controls.gameObject.SetActive(false);
         }
 
-        private bool IsPage(Component c) => c != null && (c == _home || c == _play || c == _locker || c == _shop || c == _online || c == _profile);
+        private bool IsPage(Component c) => c != null && (c == _home || c == _play || c == _locker || c == _shop || c == _online || c == _profile || c == _powers);
 
         private void Show(Component screen) => Show(screen, true);
 
@@ -146,6 +149,8 @@ namespace NeonBrawl
         public void ShowShop() => Show(_shop);
         public void ShowOnline() => Show(_online);
         public void ShowProfile() => Show(_profile);
+        public void ShowPowers() => Show(_powers);
+        public void RefreshMinimap() => _hud.RefreshMinimap();
 
         public void ShowLoading(string mapName, float seconds, Action done)
         {
@@ -238,7 +243,7 @@ namespace NeonBrawl
         public bool ControlsEditorVisible => _controls.gameObject.activeSelf;
         public bool HomeVisible => _home.gameObject.activeSelf;
         public bool InMenus => _home.gameObject.activeSelf || _play.gameObject.activeSelf || _locker.gameObject.activeSelf || _shop.gameObject.activeSelf
-                               || _online.gameObject.activeSelf || _profile.gameObject.activeSelf;
+                               || _online.gameObject.activeSelf || _profile.gameObject.activeSelf || _powers.gameObject.activeSelf;
         public bool OnlineVisible => _online.gameObject.activeSelf;
     }
 }

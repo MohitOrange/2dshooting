@@ -5,7 +5,7 @@ using UnityEngine;
 namespace NeonBrawl
 {
     /// <summary>The on-screen controls a player can move, resize and fade.</summary>
-    public enum ControlId { Move, Fire, Reload, Swap, Grenade, Dash, Knife, Auto, Pickup }
+    public enum ControlId { Move, Fire, Reload, Swap, Grenade, Dash, Knife, Auto, Pickup, Power }
 
     /// <summary>
     /// Where one control sits. The offset is measured from the nearest screen corner to the control's
@@ -28,19 +28,19 @@ namespace NeonBrawl
     /// </summary>
     public sealed class ControlLayout
     {
-        public const int Count = 9;
+        public const int Count = 10;
         public const float MinSize = 0.6f, MaxSize = 1.6f, MinAlpha = 0.25f, MaxAlpha = 1f;
         private const string Key = "nb.layout";
         private const string Version = "1";
 
-        public static readonly string[] Names = { "MOVE STICK", "FIRE STICK", "RELOAD", "SWAP GUN", "GRENADE", "DASH", "KNIFE", "AUTO SHOOT", "PICK UP" };
+        public static readonly string[] Names = { "MOVE STICK", "FIRE STICK", "RELOAD", "SWAP GUN", "GRENADE", "DASH", "KNIFE", "AUTO SHOOT", "PICK UP", "POWER" };
 
         /// <summary>Unscaled size of each control (canvas units).</summary>
         public static readonly Vector2[] BaseSize =
         {
             new Vector2(290f, 290f), new Vector2(290f, 290f), new Vector2(126f, 126f), new Vector2(126f, 126f),
             new Vector2(134f, 134f), new Vector2(146f, 146f), new Vector2(112f, 112f), new Vector2(108f, 108f),
-            new Vector2(260f, 150f),
+            new Vector2(260f, 150f), new Vector2(150f, 150f),
         };
 
         // default spots: the move stick from the bottom-left corner, everything else from the bottom-right
@@ -48,7 +48,7 @@ namespace NeonBrawl
         {
             new Vector2(270f, 250f), new Vector2(-200f, 220f), new Vector2(-150f, 560f), new Vector2(-330f, 610f),
             new Vector2(-560f, 470f), new Vector2(-600f, 230f), new Vector2(-520f, 690f), new Vector2(-150f, 724f),
-            new Vector2(-900f, 330f),
+            new Vector2(-900f, 330f), new Vector2(-375f, 418f),
         };
 
         public readonly ControlPlace[] Items = new ControlPlace[Count];

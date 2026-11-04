@@ -155,6 +155,9 @@ namespace NeonBrawl
         private Sprite _swapArrows;
         private Image _autoPlate, _autoIcon, _autoStateBg;
         private Text _autoState;
+        /// <summary>The POWER button: its plate, icon, caption and the ring that shows a running power's time.</summary>
+        public Image PowerPlate, PowerIcon, PowerRing, PowerGlow;
+        public Text PowerLabel;
 
         public static TouchControls Build(RectTransform parent, InputReader input, ArtLibrary art, ArtCatalog cat, bool preview = false)
         {
@@ -195,6 +198,20 @@ namespace NeonBrawl
             UIKit.Place(tc._autoStateBg.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(0f, 2f), new Vector2(66f, 30f));
             tc._autoState = UIKit.Label(tc._autoStateBg.transform, "State", "ON", 20, Color.white, TextAnchor.MiddleCenter);
             UIKit.Stretch(tc._autoState.rectTransform);
+
+            // POWER: empty steel plate until you pick up a power orb, then that power's badge
+            tc.PowerPlate = tc.Btn(root, art, input, ControlId.Power, "POWER", null, TouchAction.Power, HudArt.Accent.Steel);
+            tc.PowerIcon = tc.PowerPlate.transform.Find("Icon").GetComponent<Image>();
+            tc.PowerLabel = tc.PowerPlate.transform.Find("Label").GetComponent<Text>();
+            tc.PowerGlow = UIKit.Image(tc.Slots[(int)ControlId.Power], "Halo", art.Glow, new Color(1f, 1f, 1f, 0f));
+            UIKit.Place(tc.PowerGlow.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(300f, 300f));
+            tc.PowerGlow.transform.SetAsFirstSibling();
+            tc.PowerRing = UIKit.Image(tc.PowerPlate.transform, "Ring", art.Ring, Color.white);
+            tc.PowerRing.type = Image.Type.Filled;
+            tc.PowerRing.fillMethod = Image.FillMethod.Radial360;
+            tc.PowerRing.fillOrigin = (int)Image.Origin360.Top;
+            UIKit.Stretch(tc.PowerRing.rectTransform, -6f);
+            tc.PowerRing.fillAmount = 0f;
 
             var pickSlot = tc.Slot(root, ControlId.Pickup);
             var pick = UIKit.Panel9(pickSlot, "PickUp", ArtIds.PanelGold, Color.white, 2.6f, true);
@@ -242,6 +259,8 @@ namespace NeonBrawl
             DashFill.fillAmount = 0f;
             SetPickup("RIFLE", WeaponArt.Get(cat, WeaponId.Rifle));
             PickupButton.SetActive(true);
+            PowerIcon.enabled = true;
+            PowerIcon.sprite = PowerArt.Badge(PowerId.Turbo);
         }
 
         /// <summary>Shows whether auto shoot is on.</summary>
