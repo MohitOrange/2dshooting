@@ -60,8 +60,8 @@ namespace NeonBrawl.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
         }
 
-        public const string Version = "1.0.1";
-        public const int VersionCode = 2;
+        public const string Version = "1.1.0";
+        public const int VersionCode = 3;
         private const string KeystoreProperties = "Keystore/keystore.properties";
 
         /// <summary>
