@@ -29,7 +29,7 @@
 <main>
 <header>
   <h1>Neon Brawl – Privacy Policy</h1>
-  <div class="muted">Developer: MohitGames · App: Neon Brawl (Android, package <code>com.mohitgames.neonbrawl</code>) · Effective date: 2 November 2026</div>
+  <div class="muted">Developer: MohitGames · App: Neon Brawl (Android, package <code>com.mohitgames.neonbrawl</code>) · Effective date: 11 November 2026</div>
 </header>
 
 <p>This policy explains what information the game <strong>Neon Brawl</strong> ("the game", "we") uses, why, and the choices you have. We keep data use to what the game needs to run, to let you play online with friends, and to show ads that keep the game free.</p>
@@ -40,7 +40,7 @@
   <li>We do not ask for your real name, email, phone number or contacts.</li>
   <li>Your progress (coins, gems, unlocks, settings) is stored <strong>on your device</strong>.</li>
   <li>Online play uses an <strong>anonymous player ID</strong> from Unity Gaming Services.</li>
-  <li>Voice chat is <strong>off by default</strong>. When you turn the mic on, your voice is streamed live to players in your room and is not recorded by us.</li>
+  <li>Voice chat uses your microphone <strong>only if you allow microphone access</strong> (the game asks when you open online play). After that your mic is on in online rooms until you tap the mic button to turn it off; the game remembers your choice. Your voice is streamed live to players in your room and is not recorded by us.</li>
   <li>The game shows ads from <strong>Google AdMob</strong> (with Unity Ads through AdMob mediation). Personalized ads are optional.</li>
   <li>Purchases go through <strong>Google Play</strong>. We never see your card details.</li>
 </ul>
@@ -54,7 +54,7 @@
   <tr><td>Anonymous player ID, room codes, connection data (IP address)</td><td>To create and join online rooms and connect players</td><td>Unity Gaming Services (Authentication, Lobby, Relay)</td></tr>
   <tr><td>Your friend code (game name + a number), friend list, friend requests, online status and the room you are in</td><td>So friends can find you, see when you are online, invite you and join your room</td><td>Unity Friends (part of Unity Gaming Services). Only your friends see your status and room.</td></tr>
   <tr><td>Chat messages, quick phrases and emotes you send in a room</td><td>To show them to the other players in that room</td><td>Passed through the room host to players in the room; not stored by us. A word filter hides common bad words.</td></tr>
-  <tr><td>Microphone audio (only while you turn voice chat on)</td><td>Live voice chat with players in your room or team</td><td>Unity Vivox voice service. Not recorded or stored by us.</td></tr>
+  <tr><td>Microphone audio (only after you allow microphone access, and only while your mic is on in an online room)</td><td>Live voice chat with players in your room or team</td><td>Unity Vivox voice service. Not recorded or stored by us.</td></tr>
   <tr><td>Advertising ID, device and app information, approximate location from IP, ad interactions</td><td>To show ads, measure them and prevent fraud; to personalize ads only if you allow it</td><td>Google AdMob and its partners, including Unity Ads</td></tr>
   <tr><td>Purchase receipts</td><td>To deliver the gems or Remove Ads you bought</td><td>Google Play Billing (via Unity IAP)</td></tr>
   <tr><td>Crash and diagnostic data</td><td>To keep the game stable</td><td>Google Play and the ad/online service providers listed below may collect basic diagnostics</td></tr>
@@ -99,7 +99,7 @@
 
 <section>
 <h2>7. Security</h2>
-<p>Online traffic to Unity and Google services uses encrypted connections (TLS). No method of transfer or storage is 100% secure, but we use the security provided by these established platforms and collect as little as we can.</p>
+<p>Online traffic to Unity and Google services uses encrypted connections (TLS), with one exception: live voice chat audio is compressed by the Vivox voice service but <strong>not encrypted</strong> on its way to other players (its control messages are encrypted). Turn your mic off if you don't want to use voice chat. No method of transfer or storage is 100% secure, but we use the security provided by these established platforms and collect as little as we can.</p>
 </section>
 
 <section>

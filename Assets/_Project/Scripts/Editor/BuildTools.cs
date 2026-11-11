@@ -108,6 +108,32 @@ namespace NeonBrawl.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
         }
 
+        /// <summary>
+        /// Only the Play Store upload, Builds/Android/NeonBrawl.aab, signed with the upload key
+        /// (command line: -executeMethod NeonBrawl.EditorTools.BuildTools.BuildPlayStore).
+        /// Create the key once with Tools/make-upload-key.ps1.
+        /// </summary>
+        [MenuItem("Neon Brawl/Build/Play Store AAB only")]
+        public static void BuildPlayStore()
+        {
+            PlayerSettings.bundleVersion = Version;
+            PlayerSettings.Android.bundleVersionCode = VersionCode;
+            AppIconBaker.Apply();
+            bool ok = false;
+            if (UseUploadKey())
+            {
+                EditorUserBuildSettings.buildAppBundle = true;
+                ok = Log(Build(BuildTarget.Android, "Builds/Android/NeonBrawl.aab"));
+                EditorUserBuildSettings.buildAppBundle = false;
+                PlayerSettings.Android.useCustomKeystore = false; // passwords stay out of the project files
+            }
+            else
+            {
+                Debug.LogError($"[NeonBrawl] No upload key: run Tools/make-upload-key.ps1 to create {KeystoreProperties}");
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
+        }
+
         private static bool Log(BuildReport report)
         {
             File.AppendAllText("Builds/build_history.txt", File.ReadAllText("Builds/last_build.txt") + System.Environment.NewLine);

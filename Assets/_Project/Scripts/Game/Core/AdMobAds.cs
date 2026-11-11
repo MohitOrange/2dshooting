@@ -17,7 +17,8 @@ namespace NeonBrawl
     /// </summary>
     public static class AdIds
     {
-        public const string PrivacyPolicyUrl = "https://mohitorange.github.io/2dshooting/privacy-policy.html";
+        // GitHub Pages serves the repo root of main, so the page lives under /docs/.
+        public const string PrivacyPolicyUrl = "https://mohitorange.github.io/2dshooting/docs/privacy-policy.html";
 
 #if UNITY_IOS
         public const string AppId = "";
