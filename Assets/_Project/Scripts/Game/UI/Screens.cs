@@ -994,7 +994,6 @@ namespace NeonBrawl
         private float _chestT = -1f;
         private string _pendingText;
         private Sprite _pendingIcon;
-        private readonly Dictionary<string, Button> _buy = new Dictionary<string, Button>();
 
         public void Build(GameContext ctx, RectTransform safe)
         {
@@ -1031,25 +1030,26 @@ namespace NeonBrawl
             // chests
             var wood = Card(top, 3, 1, 1, RowTopH, ArtIds.PanelWood, "WOODEN CHEST", cat != null ? cat.Reward(ArtIds.RewardChest2) : null, new Color(1f, 0.7f, 0.35f), 1);
             SubLine(wood, "COMMON OR RARE GEAR", ArtIds.PanelWood);
-            Price(wood, cat != null ? cat.Reward(ArtIds.RewardCoin) : null, "500", () => OpenChest(false), new Vector2(300f, 88f));
+            var play = cat != null ? cat.Icon(ArtIds.IconPlay) : null;
+            Price(wood, play, "WATCH", () => Watch("chest_wood", () => OpenChest(false, true)), new Vector2(300f, 88f));
             var royal = Card(top, 3, 2, 1, RowTopH, ArtIds.PanelSand, "ROYAL CHEST", cat != null ? cat.Reward(ArtIds.RewardChestIron) : null, new Color(1f, 1f, 0.85f), 2);
             SubLine(royal, "EPIC OR LEGENDARY GEAR", ArtIds.PanelSand);
-            Price(royal, cat != null ? cat.Reward(ArtIds.RewardGem) : null, "60", () => OpenChest(true), new Vector2(300f, 88f));
+            Price(royal, play, "WATCH", () => Watch("chest_royal", () => OpenChest(true, true)), new Vector2(300f, 88f));
 
-            // gem packs and Remove Ads (real money, Unity IAP)
-            var ids = IapStore.GemPackIds;
-            for (int i = 0; i < ids.Length; i++)
+            // gem packs and the mega bag: everything in the shop is free, one rewarded video each
+            var amounts = IapStore.GemPackAmounts;
+            for (int i = 0; i < amounts.Length; i++)
             {
                 bool blue = i < 2;
-                var g = Card(low, 6, i, 1, RowLowH, ArtIds.PanelSlate, IapStore.GemPackAmounts[i].ToString("N0") + " GEMS",
+                int gems = amounts[i];
+                var g = Card(low, 6, i, 1, RowLowH, ArtIds.PanelSlate, gems.ToString("N0") + " GEMS",
                     cat != null ? cat.Reward(blue ? ArtIds.RewardGem : ArtIds.RewardRuby) : null, blue ? new Color(0.35f, 0.7f, 1f) : new Color(1f, 0.35f, 0.4f), 3 + i);
-                string id = ids[i];
-                _buy[id] = Price(g, null, ctx.Store.PriceOf(id), () => BuyProduct(id), new Vector2(230f, 80f));
+                Price(g, play, "WATCH", () => Watch("gems_" + gems, () => Grant(0, gems)), new Vector2(230f, 80f));
             }
-            var noAds = Card(low, 6, 4, 2, RowLowH, ArtIds.PanelOrange, "REMOVE ADS", cat != null ? cat.Icon(ArtIds.IconShield) : null, new Color(0.5f, 0.75f, 1f), 7);
-            SubLine(noAds, "NO ADS BETWEEN MATCHES", ArtIds.PanelOrange);
-            _buy[IapStore.RemoveAds] = Price(noAds, null, ctx.Store.PriceOf(IapStore.RemoveAds), () => BuyProduct(IapStore.RemoveAds), new Vector2(300f, 80f));
-            UIKit.Badge(noAds, "+" + IapStore.RemoveAdsGems + " GEMS", UIKit.Blue, new Vector2(-74f, -34f), new Vector2(1f, 1f));
+            var bag = Card(low, 6, 4, 2, RowLowH, ArtIds.PanelOrange, "MEGA BAG", cat != null ? cat.Reward(ArtIds.RewardCoin) : null, new Color(1f, 0.85f, 0.3f), 7);
+            SubLine(bag, MegaCoins.ToString("N0") + " COINS + " + MegaGems + " GEMS", ArtIds.PanelOrange);
+            Price(bag, play, "WATCH", () => Watch("mega_bag", () => Grant(MegaCoins, MegaGems)), new Vector2(300f, 80f));
+            UIKit.Badge(bag, "FREE", UIKit.Blue, new Vector2(-74f, -34f), new Vector2(1f, 1f));
 
             BuildChestPopup((RectTransform)transform, art, cat);
         }
@@ -1144,22 +1144,23 @@ namespace NeonBrawl
             int left = Ctx.Profile.AdsLeftToday;
             _adLeft.text = left > 0 ? left + " LEFT TODAY" : "COME BACK TOMORROW";
             _chestPopup.SetActive(false);
-            Ctx.Store.Changed -= RefreshPrices;
-            Ctx.Store.Changed += RefreshPrices;
-            RefreshPrices();
         }
 
+        private const int MegaCoins = 1000, MegaGems = 50;
 
-        /// <summary>Local prices from the store (e.g. ₹85.00), or … while loading, N/A when offline.</summary>
-        private void RefreshPrices()
+        /// <summary>Plays a rewarded video and runs <paramref name="grant"/> only if it was watched to the end.</summary>
+        private void Watch(string placement, Action grant)
         {
-            if (this == null) return;
-            foreach (var kv in _buy)
-            {
-                var label = kv.Value.transform.Find("Label");
-                if (label != null) label.GetComponent<Text>().text = Ctx.Store.PriceOf(kv.Key);
-                kv.Value.interactable = !(kv.Key == IapStore.RemoveAds && Ctx.Profile.Data.NoAds);
-            }
+            if (!Ctx.Ads.RewardedReady) { Ctx.Sfx.PlayUi(SfxId.UiError, 1f); Ctx.UI.Toast("No video ready yet. Try again in a moment."); return; }
+            Ctx.Ads.ShowRewarded(placement, ok => { if (ok && this != null) grant(); });
+        }
+
+        private void Grant(int coins, int gems)
+        {
+            if (coins > 0) Ctx.Profile.AddCoins(coins);
+            if (gems > 0) Ctx.Profile.AddGems(gems);
+            Ctx.Sfx.PlayUi(SfxId.UiCoin, 1f);
+            Ctx.UI.Toast((coins > 0 ? "+" + coins.ToString("N0") + " COINS  " : "") + (gems > 0 ? "+" + gems.ToString("N0") + " GEMS" : ""));
         }
 
         private void WatchAd()
@@ -1178,30 +1179,11 @@ namespace NeonBrawl
             });
         }
 
-        private void BuyProduct(string id)
-        {
-            if (!Ctx.Store.Ready)
-            {
-                Ctx.Sfx.PlayUi(SfxId.UiError, 1f);
-                Ctx.UI.Toast("The store isn't available right now. Check your connection.");
-                return;
-            }
-            int gemsBefore = Ctx.Profile.Data.Gems;
-            Ctx.Store.Buy(id, ok =>
-            {
-                if (!ok) return;
-                Ctx.Sfx.PlayUi(SfxId.UiCoin, 1f);
-                int got = Ctx.Profile.Data.Gems - gemsBefore;
-                Ctx.UI.Toast(id == IapStore.RemoveAds ? "Ads removed! Thank you!  +" + got + " GEMS" : "Thank you!  +" + got + " GEMS");
-                RefreshPrices();
-            });
-        }
-
         /// <summary>Chests unlock a random wardrobe item you don't own yet (coins back if you own everything).</summary>
-        private void OpenChest(bool royal)
+        private void OpenChest(bool royal, bool free = false)
         {
             var p = Ctx.Profile;
-            int cost = royal ? 60 : 500;
+            int cost = free ? 0 : royal ? 60 : 500;
             if (royal ? p.Data.Gems < cost : p.Data.Coins < cost)
             {
                 Ctx.Sfx.PlayUi(SfxId.UiError, 1f);
@@ -1306,7 +1288,6 @@ namespace NeonBrawl
         protected override void OnDisable()
         {
             base.OnDisable();
-            if (Ctx != null) Ctx.Store.Changed -= RefreshPrices;
             if (_chestPopup != null) _chestPopup.SetActive(false);
             if (_chestImage != null) _chestImage.enabled = true;
         }

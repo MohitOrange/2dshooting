@@ -30,11 +30,11 @@ namespace NeonBrawl
         private const string TestBanner = "ca-app-pub-3940256099942544/2934735716";
 #else
         public const string AppId = "ca-app-pub-8048914278660224~6107316062";
-        public const string Rewarded = "ca-app-pub-8048914278660224/3481152725";
+        public const string Rewarded = "ca-app-pub-8048914278660224/1666580002";
         // Create a plain Interstitial and a plain Banner unit in AdMob (leave "partner bidding" unticked)
         // and paste their ids here.
         public const string Interstitial = "";
-        public const string Banner = "";
+        public const string Banner = "ca-app-pub-8048914278660224/5127287217";
         private const string TestRewarded = "ca-app-pub-3940256099942544/5224354917";
         private const string TestInterstitial = "ca-app-pub-3940256099942544/1033173712";
         private const string TestBanner = "ca-app-pub-3940256099942544/6300978111";
@@ -44,11 +44,15 @@ namespace NeonBrawl
         public static readonly List<string> TestDevices = new List<string>();
 
         /// <summary>Editor, development builds and the "test ads" APK (define NB_TEST_ADS) never show real ads.</summary>
+        /// <summary>Google test ads in store builds too, until AdMob approves the app (it needs the public Play listing).
+        /// Set to false for the public release.</summary>
+        public const bool ForceTestAds = true;
+
         public static bool TestMode =>
 #if NB_TEST_ADS
             true;
 #else
-            Application.isEditor || Debug.isDebugBuild;
+            ForceTestAds || Application.isEditor || Debug.isDebugBuild;
 #endif
 
         public static string RewardedUnit => TestMode ? TestRewarded : Rewarded;
@@ -77,7 +81,9 @@ namespace NeonBrawl
         private Action _interDone;
         private bool _earned, _personalized = true, _started;
         private float _rewardRetry = 4f, _interRetry = 4f, _bannerRetry = 8f;
-        private bool _bannerWanted;
+        /// <summary>Banner stays on every screen, top-centre (away from the touch controls at the bottom).</summary>
+        public const bool BannerAlways = true;
+        private bool _bannerWanted = BannerAlways;
         private Rect _bannerSlot;
         private bool _audioWasPaused;
 
@@ -310,6 +316,7 @@ namespace NeonBrawl
         public void ShowBanner(Rect slotPx)
         {
             _bannerWanted = true;
+            if (BannerAlways) { if (_banner == null) LoadBanner(); return; }
             _bannerSlot = slotPx;
             if (_banner == null) { LoadBanner(); return; }
             PlaceBanner();
@@ -317,6 +324,7 @@ namespace NeonBrawl
 
         public void HideBanner()
         {
+            if (BannerAlways) return;
             _bannerWanted = false;
             if (_banner != null) _banner.Hide();
         }
@@ -327,7 +335,7 @@ namespace NeonBrawl
             if (!Initialized || _bannerLoading || string.IsNullOrEmpty(unit)) return;
             if (_banner == null)
             {
-                _banner = new BannerView(unit, AdSize.Banner, AdPosition.BottomLeft);
+                _banner = new BannerView(unit, AdSize.Banner, BannerAlways ? AdPosition.Top : AdPosition.BottomLeft);
                 _banner.OnBannerAdLoaded += () => Post(() => { _bannerLoading = false; _bannerLoaded = true; _bannerRetry = 8f; PlaceBanner(); });
                 _banner.OnBannerAdLoadFailed += error => Post(() =>
                 {
@@ -346,6 +354,7 @@ namespace NeonBrawl
         {
             if (_banner == null || !_bannerLoaded) return;
             if (!_bannerWanted) { _banner.Hide(); return; }
+            if (BannerAlways) { _banner.SetPosition(AdPosition.Top); _banner.Show(); return; }
             // The slot starts at the bottom-left corner of the screen, so Google's own BottomLeft anchor
             // (safe-area aware, no pixel/dp maths) puts the banner inside it; we only check that it fits.
             float w = _banner.GetWidthInPixels(), h = _banner.GetHeightInPixels();
